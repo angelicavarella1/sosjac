@@ -1,7 +1,13 @@
 <!-- src/views/AdminDashboard.vue -->
 <template>
   <div class="min-h-screen bg-gray-900 text-white">
-    <!-- Cabeçalho -->
+    <!-- Botão Voltar -->
+<div class="px-6 py-4">
+  <button @click="$router.back()" class="flex items-center space-x-2 text-blue-300 hover:text-blue-200">
+    <span>←</span>
+    <span>Voltar</span>
+  </button>
+</div><!-- Cabeçalho -->
     <header class="bg-gray-800 shadow-sm border-b px-6 py-4 flex justify-between items-center">
       <h1 class="text-2xl font-bold text-blue-400">🔐 Painel do Administrador</h1>
       <button @click="handleLogout" class="text-red-400 hover:text-red-300">Sair</button>

@@ -1,5 +1,12 @@
 <template>
   <div class="max-w-4xl mx-auto px-6 py-12">
+    <!-- Botão Voltar -->
+<div class="px-6 py-4">
+  <button @click="$router.back()" class="flex items-center space-x-2 text-blue-300 hover:text-blue-200">
+    <span>←</span>
+    <span>Voltar</span>
+  </button>
+</div>
     <div class="bg-white rounded-2xl shadow-xl p-8">
       <h2 class="text-2xl font-bold text-gray-800 mb-6">📌 Minhas Denúncias</h2>
 
