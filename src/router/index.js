@@ -7,7 +7,10 @@ const routes = [
   { path: '/', redirect: '/home' },
   { path: '/home', component: () => import('../views/Home.vue'), meta: { requiresAuth: true } },
   { path: '/minhas-denuncias', component: () => import('../views/MinhasDenuncias.vue'), meta: { requiresAuth: true } },
-  { path: '/denuncia/:id', component: () => import('../views/DenunciaDetalhe.vue'), meta: { requiresAuth: true } }
+  { path: '/denuncia/:id', component: () => import('../views/DenunciaDetalhe.vue'), meta: { requiresAuth: true } },
+  { path: '/admin', component: () => import('../views/AdminDashboard.vue'), meta: { requiresAuth: true } },
+  { path: '/reportar', component: () => import('../views/ReportForm.vue'), meta: { requiresAuth: true } },
+  { path: '/mapa-admin', component: () => import('../views/MapaAdmin.vue'), meta: { requiresAuth: true } }
 ]
 
 const router = createRouter({

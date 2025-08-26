@@ -1,49 +1,68 @@
-<!-- src/views/AdminDashboard.vue -->
 <template>
-  <div class="min-h-screen bg-gray-900 text-white">
-    <!-- Botão Voltar -->
-<div class="px-6 py-4">
-  <button @click="$router.back()" class="flex items-center space-x-2 text-blue-300 hover:text-blue-200">
-    <span>←</span>
-    <span>Voltar</span>
-  </button>
-</div><!-- Cabeçalho -->
-    <header class="bg-gray-800 shadow-sm border-b px-6 py-4 flex justify-between items-center">
-      <h1 class="text-2xl font-bold text-blue-400">🔐 Painel do Administrador</h1>
-      <button @click="handleLogout" class="text-red-400 hover:text-red-300">Sair</button>
-    </header>
-
-    <!-- Botão Voltar -->
-    <div class="px-6 py-4">
-      <button @click="$router.back()" class="flex items-center space-x-2 text-blue-400 hover:text-blue-300">
-        <span>←</span>
+  <div class="min-h-screen bg-blue-900 text-white px-6 py-8">
+    <!-- Botão Voltar (destacado) -->
+    <div class="mb-6">
+      <button
+        @click="$router.back()"
+        class="flex items-center space-x-3 px-6 py-3 bg-blue-700 hover:bg-blue-600 text-white rounded-xl shadow-lg transition-transform duration-200 transform hover:scale-105 font-semibold text-lg"
+      >
+        <span class="text-xl">←</span>
         <span>Voltar</span>
       </button>
     </div>
 
-    <!-- Conteúdo -->
-    <main class="max-w-6xl mx-auto px-6 py-8">
-      <h2 class="text-xl font-semibold mb-6">📋 Denúncias Recebidas</h2>
+    <!-- Cabeçalho -->
+    <header class="bg-blue-800 shadow-lg border-b border-blue-600 px-6 py-4 rounded-xl mb-8">
+      <h1 class="text-3xl font-bold text-blue-300">🔐 Painel do Administrador</h1>
+      <p class="text-blue-200 mt-2">Gerencie todas as denúncias do Jardim Atlântico Central</p>
+    </header>
 
-      <div v-if="reports.length === 0" class="text-center py-8 text-gray-500">
-        Nenhuma denúncia registrada.
+    <!-- Conteúdo Principal -->
+    <main class="max-w-6xl mx-auto">
+      <h2 class="text-2xl font-semibold mb-6 text-blue-300">📋 Denúncias Recebidas</h2>
+
+      <div v-if="reports.length === 0" class="text-center py-10 text-gray-400">
+        <p>Nenhuma denúncia registrada no momento.</p>
       </div>
 
       <div v-else class="space-y-6">
-        <div v-for="r in reports" :key="r.id" class="bg-gray-800 rounded-xl p-6 shadow-lg">
-          <h3 class="text-lg font-semibold text-blue-300">{{ r.titulo }}</h3>
+        <div
+          v-for="r in reports"
+          :key="r.id"
+          class="bg-blue-800 rounded-xl p-6 shadow-lg border border-blue-600 hover:bg-blue-750 transition"
+        >
+          <div class="flex justify-between items-start mb-4">
+            <h3 class="text-xl font-bold text-blue-200">{{ r.titulo }}</h3>
+            <span
+              :style="{ color: statusColor(r.status) }"
+              class="px-3 py-1 rounded-full text-sm font-medium bg-opacity-20"
+              :class="statusBg(r.status)"
+            >
+              {{ r.status }}
+            </span>
+          </div>
+
           <p><strong>Categoria:</strong> {{ r.categoria }}</p>
-          <p><strong>Status:</strong> 
-            <span :style="{ color: statusColor(r.status) }" class="font-medium">{{ r.status }}</span>
-          </p>
           <p><strong>Morador:</strong> {{ r.email_usuario }}</p>
           <p><strong>Data:</strong> {{ new Date(r.created_at).toLocaleString('pt-BR') }}</p>
-          
-          <img v-if="r.url_foto" :src="r.url_foto" alt="Foto da denúncia" class="mt-4 rounded-lg max-w-full shadow" />
+
+          <!-- Foto da denúncia -->
+          <img
+            v-if="r.url_foto"
+            :src="r.url_foto"
+            alt="Foto da denúncia"
+            class="mt-4 rounded-lg max-w-full shadow-md border border-blue-500"
+            @click="openImageModal(r.url_foto)"
+          />
 
           <!-- Atualizar status -->
-          <div class="mt-4">
-            <select v-model="r.status" @change="updateStatus(r)" class="px-3 py-2 bg-gray-700 rounded-lg text-white">
+          <div class="mt-6">
+            <label class="block text-sm font-medium text-blue-200 mb-2">Atualizar Status</label>
+            <select
+              v-model="r.status"
+              @change="updateStatus(r)"
+              class="w-full px-4 py-3 border border-blue-500 rounded-lg bg-blue-700 text-white focus:ring-2 focus:ring-blue-400 outline-none"
+            >
               <option value="registrado">Registrado</option>
               <option value="em_analise">Em análise</option>
               <option value="encaminhado">Encaminhado</option>
@@ -53,6 +72,23 @@
         </div>
       </div>
     </main>
+
+    <!-- Modal da imagem -->
+    <div
+      v-if="modalImage"
+      class="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50 p-4"
+      @click="closeImageModal"
+    >
+      <div class="relative max-w-3xl max-h-full">
+        <img :src="modalImage" alt="Ampliada" class="max-w-full max-h-screen rounded-lg shadow-2xl" />
+        <button
+          @click="closeImageModal"
+          class="absolute top-4 right-4 text-white bg-red-600 hover:bg-red-500 rounded-full w-10 h-10 flex items-center justify-center text-2xl font-bold"
+        >
+          ×
+        </button>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -61,7 +97,10 @@ import { supabase } from '../services/supabaseClient'
 
 export default {
   data() {
-    return { reports: [] }
+    return {
+      reports: [],
+      modalImage: null
+    }
   },
   async mounted() {
     const user = await this.getCurrentUser()
@@ -97,14 +136,23 @@ export default {
         .eq('id', r.id)
       if (error) alert('Erro ao atualizar status')
     },
-    async handleLogout() {
-      await supabase.auth.signOut()
-      this.$router.push('/login')
-    },
     statusColor(status) {
-      if (status === 'resolvido') return 'green'
+      if (status === 'resolvido') return 'lightgreen'
       if (status === 'em_analise') return 'orange'
+      if (status === 'encaminhado') return 'skyblue'
       return 'red'
+    },
+    statusBg(status) {
+      if (status === 'resolvido') return 'bg-green-500'
+      if (status === 'em_analise') return 'bg-yellow-500'
+      if (status === 'encaminhado') return 'bg-blue-500'
+      return 'bg-red-500'
+    },
+    openImageModal(url) {
+      this.modalImage = url
+    },
+    closeImageModal() {
+      this.modalImage = null
     }
   }
 }

@@ -1,13 +1,38 @@
 <template>
-  <div class="max-w-4xl mx-auto px-6 py-12">
-    <!-- Botão Voltar -->
-<div class="px-6 py-4">
-  <button @click="$router.back()" class="flex items-center space-x-2 text-blue-300 hover:text-blue-200">
-    <span>←</span>
-    <span>Voltar</span>
-  </button>
-</div>
-    <div class="bg-white rounded-2xl shadow-xl p-8">
+  <!-- Cabeçalho Fixo -->
+  <header class="bg-blue-800 text-white shadow-lg px-6 py-4 fixed top-0 left-0 right-0 z-50 flex items-center justify-between">
+    <!-- Ícone à esquerda -->
+    <div class="flex items-center">
+      <img src="/favicon.ico" alt="Logo SOSJAC" class="w-8 h-8 mr-3" />
+      <h1 class="text-xl font-bold">SOSJAC</h1>
+    </div>
+
+    <!-- Título da página (centro) -->
+    <h2 class="text-lg font-semibold flex-1 text-center">📌 Minhas Denúncias</h2>
+
+    <!-- Usuário e Sair (direita) -->
+    <div class="flex items-center space-x-4">
+      <span class="text-sm">Olá, {{ user?.email }}</span>
+      <button @click="handleLogout" class="bg-red-600 hover:bg-red-500 text-white text-sm px-3 py-1 rounded-lg">
+        Sair
+      </button>
+    </div>
+  </header>
+
+  <!-- Conteúdo principal (com espaço para o cabeçalho fixo) -->
+  <main class="min-h-screen bg-blue-900 pt-24 pb-8 px-6 text-white">
+    <!-- Botão Voltar (no final, lado direito) -->
+    <div class="text-right mb-6">
+      <button
+        @click="$router.back()"
+        class="flex items-center space-x-2 ml-auto px-6 py-3 bg-blue-700 hover:bg-blue-600 text-white rounded-xl shadow-lg transition-transform duration-200 transform hover:scale-105 font-semibold"
+      >
+        <span>←</span>
+        <span>Voltar</span>
+      </button>
+    </div>
+
+    <div class="max-w-4xl mx-auto bg-white rounded-2xl shadow-xl p-8">
       <h2 class="text-2xl font-bold text-gray-800 mb-6">📌 Minhas Denúncias</h2>
 
       <div v-if="reports.length === 0" class="text-center py-8">
@@ -35,39 +60,42 @@
         </div>
       </div>
     </div>
-  </div>
+  </main>
 </template>
 
 <script>
-import { supabase } from '../services/supabaseClient' // ✅ Importe aqui
+import { supabase } from '../services/supabaseClient'
 
 export default {
   data() {
     return {
+      user: null,
       reports: []
     }
   },
   async mounted() {
-    const user = await this.getCurrentUser()
-    if (!user) return this.$router.push('/login')
+    const { data } = await supabase.auth.getUser()
+    this.user = data.user
 
-    const { data } = await supabase
+    if (!this.user) return this.$router.push('/login')
+
+    const { data: reportsData } = await supabase
       .from('denuncia')
       .select('*')
-      .eq('email_usuario', user.email)
+      .eq('email_usuario', this.user.email)
       .order('created_at', { ascending: false })
 
-    this.reports = data
+    this.reports = reportsData
   },
   methods: {
-    async getCurrentUser() {
-      const { data } = await supabase.auth.getUser()
-      return data.user
-    },
     statusColor(status) {
       if (status === 'resolvido') return 'green'
       if (status === 'em_andamento') return 'orange'
       return 'red'
+    },
+    async handleLogout() {
+      await supabase.auth.signOut()
+      this.$router.push('/login')
     }
   }
 }
