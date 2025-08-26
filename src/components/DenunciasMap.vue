@@ -1,10 +1,13 @@
 <template>
+  <!-- Container do mapa -->
   <div class="map-container">
     <div id="map" ref="map"></div>
   </div>
 </template>
 
 <script>
+import { supabase } from '../services/supabaseClient'
+
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 
