@@ -1,24 +1,44 @@
 <template>
-  <div class="min-h-screen bg-blue-900 text-white px-6 py-8">
-    <!-- Botão Voltar (destacado) -->
-    <div class="mb-6">
+  <!-- Cabeçalho Fixo -->
+  <header class="bg-blue-800 text-white shadow-lg px-6 py-4 fixed top-0 left-0 right-0 z-50 flex items-center justify-between">
+    <!-- Ícone à esquerda -->
+    <div class="flex items-center">
+      <img src="/favicon.ico" alt="Logo SOSJAC" class="w-8 h-8 mr-3" />
+      <h1 class="text-xl font-bold">SOSJAC</h1>
+    </div>
+
+    <!-- Título da página (centro) -->
+    <h2 class="text-lg font-semibold flex-1 text-center">🔐 Painel do Administrador</h2>
+
+    <!-- Usuário e Sair (direita) -->
+    <div class="flex items-center space-x-4">
+      <span class="text-sm">Olá, {{ user?.email }}</span>
+      <button @click="handleLogout" class="bg-red-600 hover:bg-red-500 text-white text-sm px-3 py-1 rounded-lg">
+        Sair
+      </button>
+    </div>
+  </header>
+
+  <!-- Conteúdo principal (com espaço para o cabeçalho fixo) -->
+  <main class="min-h-screen bg-blue-900 pt-24 pb-8 px-6 text-white">
+    <!-- Botão Voltar (no final, lado direito) -->
+    <div class="text-right mb-6">
       <button
         @click="$router.back()"
-        class="flex items-center space-x-3 px-6 py-3 bg-blue-700 hover:bg-blue-600 text-white rounded-xl shadow-lg transition-transform duration-200 transform hover:scale-105 font-semibold text-lg"
+        class="flex items-center space-x-2 ml-auto px-6 py-3 bg-blue-700 hover:bg-blue-600 text-white rounded-xl shadow-lg transition-transform duration-200 transform hover:scale-105 font-semibold"
       >
-        <span class="text-xl">←</span>
+        <span>←</span>
         <span>Voltar</span>
       </button>
     </div>
 
-    <!-- Cabeçalho -->
+    <!-- CONTEÚDO ORIGINAL (sem alterações) -->
     <header class="bg-blue-800 shadow-lg border-b border-blue-600 px-6 py-4 rounded-xl mb-8">
       <h1 class="text-3xl font-bold text-blue-300">🔐 Painel do Administrador</h1>
       <p class="text-blue-200 mt-2">Gerencie todas as denúncias do Jardim Atlântico Central</p>
     </header>
 
-    <!-- Conteúdo Principal -->
-    <main class="max-w-6xl mx-auto">
+    <div class="max-w-6xl mx-auto">
       <h2 class="text-2xl font-semibold mb-6 text-blue-300">📋 Denúncias Recebidas</h2>
 
       <div v-if="reports.length === 0" class="text-center py-10 text-gray-400">
@@ -71,7 +91,7 @@
           </div>
         </div>
       </div>
-    </main>
+    </div>
 
     <!-- Modal da imagem -->
     <div
@@ -89,7 +109,7 @@
         </button>
       </div>
     </div>
-  </div>
+  </main>
 </template>
 
 <script>
@@ -98,11 +118,15 @@ import { supabase } from '../services/supabaseClient'
 export default {
   data() {
     return {
+      user: null,
       reports: [],
       modalImage: null
     }
   },
   async mounted() {
+    const { data } = await supabase.auth.getUser()
+    this.user = data.user
+
     const user = await this.getCurrentUser()
     if (!user || !(await this.isAdmin())) {
       this.$router.push('/login')
@@ -153,6 +177,27 @@ export default {
     },
     closeImageModal() {
       this.modalImage = null
+    },
+    async handleLogout() {
+      await supabase.auth.signOut()
+      this.$router.push('/login')
+    },
+    async banirUsuario(email) {
+      const { error } = await supabase
+        .from('perfis')
+        .update({
+          status: 'banido',
+          motivo_banimento: 'Violação das regras do aplicativo',
+          data_banimento: new Date().toISOString()
+        })
+        .eq('email', email)
+
+      if (error) {
+        alert('Erro ao banir usuário')
+      } else {
+        alert(`${email} foi banido com sucesso.`)
+        await this.loadReports()
+      }
     }
   }
 }
