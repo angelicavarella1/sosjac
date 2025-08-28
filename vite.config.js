@@ -1,4 +1,3 @@
-// vite.config.js
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 
@@ -10,7 +9,7 @@ export default defineConfig({
     }
   },
   server: {
-    port: 5179,
-    host: true
+    host: 'localhost',
+    open: true
   }
 })

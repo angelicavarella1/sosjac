@@ -1,7 +1,38 @@
-<!-- src/views/DenunciaDetalhe.vue -->
 <template>
-  <div class="max-w-4xl mx-auto px-6 py-12">
-    <div class="bg-white rounded-2xl shadow-xl p-8">
+  <!-- Cabeçalho Fixo -->
+  <header class="bg-blue-800 text-white shadow-lg px-6 py-4 fixed top-0 left-0 right-0 z-50 flex items-center justify-between">
+    <!-- Ícone à esquerda -->
+    <div class="flex items-center">
+      <img src="/favicon.ico" alt="Logo SOSJAC" class="w-8 h-8 mr-3" />
+      <h1 class="text-xl font-bold">SOSJAC</h1>
+    </div>
+
+    <!-- Título da página (centro) -->
+    <h2 class="text-lg font-semibold flex-1 text-center">📌 Detalhes da Denúncia</h2>
+
+    <!-- Usuário e Sair (direita) -->
+    <div class="flex items-center space-x-4">
+      <span class="text-sm">Olá, {{ user?.email }}</span>
+      <button @click="handleLogout" class="bg-red-600 hover:bg-red-500 text-white text-sm px-3 py-1 rounded-lg">
+        Sair
+      </button>
+    </div>
+  </header>
+
+  <!-- Conteúdo principal (com espaço para o cabeçalho fixo) -->
+  <main class="min-h-screen bg-blue-900 pt-24 pb-8 px-6 text-white">
+    <!-- Botão Voltar (no final, lado direito) -->
+    <div class="text-right mb-6">
+      <button
+        @click="$router.back()"
+        class="flex items-center space-x-2 ml-auto px-6 py-3 bg-blue-700 hover:bg-blue-600 text-white rounded-xl shadow-lg transition-transform duration-200 transform hover:scale-105 font-semibold"
+      >
+        <span>←</span>
+        <span>Voltar</span>
+      </button>
+    </div>
+
+    <div class="max-w-4xl mx-auto bg-white rounded-2xl shadow-xl p-8">
       <h2 class="text-2xl font-bold text-gray-800 mb-6">📌 Detalhes da Denúncia</h2>
 
       <div v-if="report" class="space-y-4">
@@ -10,7 +41,7 @@
           <span :style="{ color: statusColor(report.status) }" class="font-medium">{{ report.status }}</span>
         </p>
         <p><strong>Categoria:</strong> {{ report.categoria }}</p>
-        <p><strong>Descrição:</strong> {{ report.descricao }}</p>
+        <p><strong>Descrição:</strong> {{ report?.['DESCRIÇÃO'] || report?.descricao || 'Descrição não fornecida' }}</p>
         <p><strong>Localização:</strong> {{ report.latitude }}, {{ report.longitude }}</p>
         <p><strong>Data:</strong> {{ new Date(report.created_at).toLocaleString('pt-BR') }}</p>
         <p><strong>Enviado por:</strong> {{ report.email_usuario }}</p>
@@ -28,12 +59,8 @@
       <div v-else>
         <p class="text-gray-600">Carregando... ou acesso negado.</p>
       </div>
-
-      <button @click="$router.back()" class="mt-8 bg-gray-600 text-white px-6 py-2 rounded-lg hover:bg-gray-700 transition">
-        Voltar
-      </button>
     </div>
-  </div>
+  </main>
 </template>
 
 <script>
@@ -42,10 +69,14 @@ import { supabase } from '../services/supabaseClient'
 export default {
   data() {
     return {
+      user: null,
       report: null
     }
   },
   async mounted() {
+    const { data } = await supabase.auth.getUser()
+    this.user = data.user
+
     // Verifica se o usuário está logado
     const user = await this.getCurrentUser()
     if (!user) return this.$router.push('/login')
@@ -53,10 +84,10 @@ export default {
     // Pega o ID da denúncia da URL
     const id = this.$route.params.id
 
-    // Busca a denúncia no Supabase
-    const { data, error } = await supabase
+    // Busca a denúncia no Supabase — com campos explícitos
+    const { data: dataReport, error } = await supabase
       .from('denuncia')
-      .select('*')
+      .select('id,titulo,categoria,descricao,url_foto,latitude,longitude,email_usuario,status,created_at')
       .eq('id', id)
       .single()
 
@@ -67,14 +98,17 @@ export default {
 
     // Verifica se o usuário é o denunciante ou admin
     const isAdmin = await this.checkIfAdmin(user.email)
-    if (data.email_usuario !== user.email && !isAdmin) {
+    if (dataReport.email_usuario !== user.email && !isAdmin) {
       alert('Acesso negado. Você não tem permissão para ver esta denúncia.')
       this.$router.push('/home')
       return
     }
 
     // Tudo certo, mostra a denúncia
-    this.report = data
+    this.report = dataReport
+
+    // Para depuração
+    console.log('Denúncia carregada:', this.report)
   },
   methods: {
     async getCurrentUser() {
@@ -91,8 +125,12 @@ export default {
     },
     statusColor(status) {
       if (status === 'resolvido') return 'green'
-      if (status === 'em_andamento') return 'orange'
+      if (status === 'em_analise') return 'orange'
       return 'red'
+    },
+    async handleLogout() {
+      await supabase.auth.signOut()
+      this.$router.push('/login')
     }
   }
 }

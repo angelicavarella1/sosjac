@@ -39,7 +39,7 @@ export default {
   methods: {
     async handleLogout() {
       await supabase.auth.signOut()
-      this..push('/login')
+      this.$router.push('/login')
     }
   }
 }

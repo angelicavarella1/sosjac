@@ -10,7 +10,8 @@ const routes = [
   { path: '/denuncia/:id', component: () => import('../views/DenunciaDetalhe.vue'), meta: { requiresAuth: true } },
   { path: '/admin', component: () => import('../views/AdminDashboard.vue'), meta: { requiresAuth: true } },
   { path: '/reportar', component: () => import('../views/ReportForm.vue'), meta: { requiresAuth: true } },
-  { path: '/mapa-admin', component: () => import('../views/MapaAdmin.vue'), meta: { requiresAuth: true } }
+  { path: '/mapa-admin', component: () => import('../views/MapaAdmin.vue'), meta: { requiresAuth: true } },
+  { path: '/relatorios', component: () => import('../views/Relatorios.vue'), meta: { requiresAuth: true } }
 ]
 
 const router = createRouter({
