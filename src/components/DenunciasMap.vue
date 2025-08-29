@@ -5,12 +5,11 @@
 </template>
 
 <script>
-import { supabase } from '../services/supabaseClient'  // ✅ Importe aqui
-
+import { supabase } from '../services/supabaseClient'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 
-// Correção dos ícones do Leaflet (sem espaços extras)
+// Correção dos ícones
 delete L.Icon.Default.prototype._getIconUrl
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
@@ -61,13 +60,13 @@ export default {
   overflow: hidden;
   margin: 20px 0;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-  background: #1e3a8a; /* bg-blue-900 */
-  border: 2px solid #3b82f6; /* azul claro */
+  background: #1e3a8a;
+  border: 2px solid #3b82f6;
 }
 #map {
   width: 100%;
   height: 100%;
-  background: #1e3a8a; /* fundo azul escuro */
+  background: #1e3a8a;
   border-radius: 10px;
 }
 </style>
