@@ -1,17 +1,11 @@
 <template>
-  <div id="app">
-    <router-view />
-  </div>
+  <router-view />
 </template>
 
-<script>
-export default {
-  name: 'App'
-}
+<script setup lang="ts">
+// Nenhuma lógica ou importações aqui.
 </script>
 
 <style>
-#app {
-  font-family: 'Inter', sans-serif;
-}
+/* Estilos globais */
 </style>
