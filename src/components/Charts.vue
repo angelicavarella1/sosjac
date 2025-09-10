@@ -3,13 +3,13 @@
     <h3 class="text-lg font-semibold mb-4">{{ title }}</h3>
     <div class="h-48">
       <Bar
-        v-if="props.type === 'bar' && barDataReady"
+        v-if="type === 'bar' && barDataReady"
         :data="barData"
         :options="options"
         class="h-full"
       />
       <Pie
-        v-else-if="props.type === 'pie' && pieDataReady"
+        v-else-if="type === 'pie' && pieDataReady"
         :data="pieData"
         :options="options"
         class="h-full"
@@ -33,8 +33,7 @@ import {
   CategoryScale,
   LinearScale,
   ArcElement,
-  ChartData,
-  Plugin
+  ChartData
 } from 'chart.js'
 
 // Registrar componentes ChartJS
@@ -47,15 +46,16 @@ interface ChartProps {
 }
 
 const props = defineProps<ChartProps>()
+const type = props.type
 const title = computed(() => props.title || '')
 
-// Estados para controlar quando dados estão prontos
+// Controle para quando os dados estiverem prontos
 const barDataReady = ref(false)
 const pieDataReady = ref(false)
 
-// Dados computados com casting seguro
+// Dados com casting seguro
 const barData = computed<ChartData<'bar', number[], string>>(() => {
-  if (props.type === 'bar') {
+  if (type === 'bar') {
     barDataReady.value = true
     pieDataReady.value = false
     return props.data as ChartData<'bar', number[], string>
@@ -66,7 +66,7 @@ const barData = computed<ChartData<'bar', number[], string>>(() => {
 })
 
 const pieData = computed<ChartData<'pie', number[], string>>(() => {
-  if (props.type === 'pie') {
+  if (type === 'pie') {
     pieDataReady.value = true
     barDataReady.value = false
     return props.data as ChartData<'pie', number[], string>

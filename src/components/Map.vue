@@ -17,10 +17,11 @@ interface Position {
 const props = defineProps<{
   modelValue: Position
   readonly?: boolean
-}>()
+}>();
 
 const emit = defineEmits<{
   (e: 'update:modelValue', pos: Position): void
+  (e: 'update:endereco', endereco: string): void
 }>()
 
 const mapContainer = ref<HTMLDivElement | null>(null)
@@ -29,15 +30,23 @@ let marker: LeafletMarker | null = null
 const markerIcon = new URL('leaflet/dist/images/marker-icon.png', import.meta.url).href
 const shadowIcon = new URL('leaflet/dist/images/marker-shadow.png', import.meta.url).href
 
-// Otimização: Apenas uma função de observação
+// Observa posição
 watch(() => props.modelValue, (newVal) => {
-  if (marker) {
-    marker.setLatLng([newVal.lat, newVal.lng])
-  }
-  if (map) {
-    map.setView([newVal.lat, newVal.lng], map.getZoom())
-  }
+  if (marker) marker.setLatLng([newVal.lat, newVal.lng])
+  if (map) map.setView([newVal.lat, newVal.lng], map.getZoom())
 }, { deep: true })
+
+// Função para buscar endereço via Nominatim
+async function buscarEndereco(lat: number, lng: number) {
+  try {
+    const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`)
+    const data = await res.json()
+    const endereco = data.display_name || ''
+    emit('update:endereco', endereco)
+  } catch (err) {
+    console.warn('[Map] Não foi possível obter o endereço:', err)
+  }
+}
 
 onMounted(() => {
   if (!mapContainer.value) return
@@ -53,7 +62,7 @@ onMounted(() => {
     attribution: '&copy; OpenStreetMap contributors'
   }).addTo(map)
 
-  // Corrigir ícones do Leaflet
+  // Corrigir ícones
   delete (L.Icon.Default.prototype as any)._getIconUrl
   L.Icon.Default.mergeOptions({
     iconRetinaUrl: markerIcon,
@@ -67,15 +76,18 @@ onMounted(() => {
     marker.on('dragend', (e: any) => {
       const { lat, lng } = e.target.getLatLng()
       emit('update:modelValue', { lat, lng })
+      buscarEndereco(lat, lng)
     })
 
     map.on('click', (e: LeafletMouseEvent) => {
-      if (marker) {
-        marker.setLatLng(e.latlng)
-      }
+      if (marker) marker.setLatLng(e.latlng)
       emit('update:modelValue', e.latlng)
+      buscarEndereco(e.latlng.lat, e.latlng.lng)
     })
   }
+
+  // Busca inicial de endereço
+  buscarEndereco(safePos.lat, safePos.lng)
 })
 
 onUnmounted(() => {

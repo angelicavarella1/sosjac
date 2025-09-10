@@ -1,29 +1,29 @@
 <template>
-  <AppLayout
-    :show-back-button="true"
-    :show-logout-button="true"
-    title="Registrar Denúncia"
-  >
-    <div class="max-w-4xl mx-auto p-6 bg-white rounded shadow mt-6 space-y-6">
-      <form @submit.prevent="submitForm" class="space-y-4">
+  <!-- Botões de navegação -->
+  <NavigationButtons :disable-back="true" />
+
+  <!-- Loading -->
+  <div v-if="auth.loading || !auth.user" class="flex flex-col items-center justify-center min-h-screen bg-gray-100 p-6">
+    <p class="text-xl text-gray-700 font-semibold">Carregando o formulário...</p>
+    <div class="mt-4 animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
+  </div>
+
+  <!-- Formulário -->
+  <div v-else class="max-w-4xl mx-auto p-6 bg-white rounded shadow-md mt-6 space-y-6">
+    <form @submit.prevent="submitForm" class="space-y-6">
+
+      <!-- Campos de formulário -->
+      <div class="space-y-4">
         <div>
           <label class="block mb-1 font-medium">Título</label>
-          <input
-            v-model="titulo"
-            type="text"
-            required
-            placeholder="Informe um título"
-            class="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
+          <input v-model="titulo" type="text" required placeholder="Informe um título"
+                 class="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"/>
         </div>
 
         <div>
           <label class="block mb-1 font-medium">Categoria</label>
-          <select
-            v-model="categoria"
-            required
-            class="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
+          <select v-model="categoria" required
+                  class="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500">
             <option value="" disabled>Selecione uma categoria</option>
             <option value="iluminacao_publica">Iluminação Pública</option>
             <option value="saneamento_basico">Saneamento Básico</option>
@@ -37,93 +37,86 @@
 
         <div>
           <label class="block mb-1 font-medium">Descrição</label>
-          <textarea
-            v-model="descricao"
-            rows="6"
-            required
-            placeholder="Descreva a denúncia detalhadamente"
-            class="w-full px-3 py-2 border rounded resize-y focus:outline-none focus:ring-2 focus:ring-blue-500"
-          ></textarea>
+          <textarea v-model="descricao" rows="6" required placeholder="Descreva a denúncia detalhadamente"
+                    class="w-full px-3 py-2 border rounded resize-y focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
         </div>
 
-        <div class="h-64 w-full relative mb-2">
-          <Map v-model="posicao" />
-          <p class="text-sm text-gray-500 mt-2">
-            Clique no mapa para marcar a localização da denúncia.
-          </p>
+        <div>
+          <label class="block mb-1 font-medium">Endereço</label>
+          <input v-model="endereco" type="text" required placeholder="Clique no mapa para preencher o endereço"
+                 class="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500" readonly/>
         </div>
+      </div>
 
-        <div class="flex flex-col md:flex-row md:space-x-6 space-y-4 md:space-y-0">
-          <div class="flex-1">
-            <p class="text-sm text-gray-700 mt-1">
-              Coordenadas: {{ posicao.lat.toFixed(6) }}, {{ posicao.lng.toFixed(6) }}
-            </p>
-            <button
-              type="button"
-              @click="usarMinhaLocalizacao"
-              class="mt-2 px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700"
-            >
-              Usar minha localização
-            </button>
-          </div>
+      <!-- Mapa -->
+      <div class="h-72 w-full relative mb-8">
+        <Map v-model="posicao" @update:endereco="endereco = $event"/>
+        <p class="text-sm text-gray-500 mt-2">Clique no mapa ou arraste o marcador para marcar a localização da denúncia.</p>
+      </div>
 
-          <div class="flex-1">
-            <label class="block mb-1 font-medium">Fotos/Vídeos (opcional)</label>
-            <input
-              type="file"
-              multiple
-              @change="handleFiles"
-              accept="image/*,video/*"
-              class="block w-full text-sm text-gray-700 border rounded p-1 cursor-pointer"
-            />
-            <div v-if="files.length" class="mt-2 text-sm text-gray-600">
-              Arquivos selecionados:
-              <ul class="list-disc list-inside">
-                <li v-for="(file, index) in files" :key="index">{{ file.name }}</li>
-              </ul>
-            </div>
-          </div>
-        </div>
-
-        <div v-if="error" class="text-red-600 p-3 bg-red-50 rounded">{{ error }}</div>
-        <div v-if="success" class="text-green-600 p-3 bg-green-50 rounded">{{ success }}</div>
-
-        <div class="mt-4">
-          <button
-            type="submit"
-            :disabled="isSubmitting"
-            class="w-full bg-green-600 text-white py-2 rounded hover:bg-green-700 font-semibold text-lg disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <span v-if="isSubmitting">Enviando... ⏳</span>
-            <span v-else>Enviar Denúncia</span>
+      <!-- Coordenadas e arquivos -->
+      <div class="flex flex-col md:flex-row md:space-x-6 space-y-4 md:space-y-0 mb-6">
+        <div class="flex-1">
+          <p class="text-sm text-gray-700 mt-1">Coordenadas: {{ posicao.lat.toFixed(6) }}, {{ posicao.lng.toFixed(6) }}</p>
+          <button type="button" @click="usarMinhaLocalizacao"
+                  class="mt-2 px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 font-semibold transition transform hover:scale-105">
+            Usar minha localização
           </button>
         </div>
-      </form>
-    </div>
-  </AppLayout>
+
+        <div class="flex-1">
+          <label class="block mb-1 font-medium">Fotos/Vídeos (opcional)</label>
+          <input type="file" multiple @change="handleFiles"
+                 accept="image/*,video/*"
+                 class="block w-full text-sm text-gray-700 border rounded p-1 cursor-pointer"/>
+          <div v-if="files.length" class="mt-2 text-sm text-gray-600">
+            Arquivos selecionados:
+            <ul class="list-disc list-inside">
+              <li v-for="(file, index) in files" :key="index">{{ file.name }}</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- Mensagens -->
+      <div v-if="error" class="text-red-600 p-3 bg-red-50 rounded">{{ error }}</div>
+      <div v-if="success" class="text-green-600 p-3 bg-green-50 rounded">{{ success }}</div>
+
+      <!-- Botão enviar -->
+      <div class="mt-4">
+        <button type="submit" :disabled="isSubmitting"
+                class="w-full bg-green-600 text-white py-2 rounded hover:bg-green-700 font-semibold text-lg transition transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed">
+          <span v-if="isSubmitting">Enviando... ⏳</span>
+          <span v-else>Enviar Denúncia</span>
+        </button>
+      </div>
+
+    </form>
+  </div>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { supabase } from '@/api/supabaseClient'
 import { useAuthStore } from '@/store/useAuthStore'
 import Map from '@/components/Map.vue'
-import AppLayout from '@/components/AppLayout.vue'
+import NavigationButtons from '@/components/NavigationButtons.vue'
+import { supabase } from '@/api/supabaseClient'
 
 interface Position { lat: number; lng: number }
+
+const auth = useAuthStore()
+const router = useRouter()
 
 const titulo = ref('')
 const categoria = ref('')
 const descricao = ref('')
+const endereco = ref('')
 const posicao = ref<Position>({ lat: -22.956633, lng: -42.952338 })
 const files = ref<File[]>([])
 const error = ref('')
 const success = ref('')
 const isSubmitting = ref(false)
-
-const auth = useAuthStore()
-const router = useRouter()
 
 onMounted(async () => {
   if (!auth.user) await router.replace('/login')
@@ -136,106 +129,71 @@ function handleFiles(event: Event) {
 }
 
 function usarMinhaLocalizacao() {
-  if (!navigator.geolocation) {
-    alert('Geolocalização não suportada pelo navegador.')
-    return
-  }
-
+  if (!navigator.geolocation) { alert('Geolocalização não suportada.'); return }
   navigator.geolocation.getCurrentPosition(
-    (pos) => {
-      posicao.value = {
-        lat: pos.coords.latitude,
-        lng: pos.coords.longitude
-      }
-    },
-    (err) => {
-      if (err.code === 1) {
-        alert('Permissão de localização negada. Por favor, ative nas configurações do navegador.')
-      } else {
-        alert('Não foi possível obter sua localização. Tente novamente.')
-      }
-    },
-    {
-      timeout: 10000,
-      maximumAge: 60000
-    }
+    pos => { posicao.value = { lat: pos.coords.latitude, lng: pos.coords.longitude } },
+    err => { alert(err.code === 1 ? 'Permissão negada.' : 'Não foi possível obter localização.') },
+    { timeout: 10000, maximumAge: 60000 }
   )
 }
 
 async function submitForm() {
-  error.value = ''
-  success.value = ''
-
-  if (!titulo.value.trim() || !categoria.value || !descricao.value.trim()) {
+  if (!titulo.value || !categoria.value || !descricao.value || !endereco.value) {
     error.value = 'Preencha todos os campos obrigatórios.'
     return
   }
 
-  if (!auth.user) {
-    error.value = 'Usuário não autenticado. Faça login novamente.'
-    return
-  }
-
   isSubmitting.value = true
+  error.value = ''
+  success.value = ''
 
   try {
-    const { data: denuncia, error: insertError } = await supabase
+    // Inserir denúncia na tabela 'denuncias'
+    const { data: denunciaData, error: denunciaError } = await supabase
       .from('denuncias')
-      .insert([{
-        titulo: titulo.value.trim(),
+      .insert({
+        user_id: auth.user.id,
+        titulo: titulo.value,
+        descricao: descricao.value,
         categoria: categoria.value,
-        descricao: descricao.value.trim(),
+        status: 'registrado',
         latitude: posicao.value.lat,
         longitude: posicao.value.lng,
-        user_id: auth.user.id
-      }])
+        endereco: endereco.value
+      })
       .select()
       .single()
 
-    if (insertError) throw insertError
+    if (denunciaError) throw denunciaError
 
-    // ✅ Otimização: Upload de mídias em paralelo
-    if (files.value.length > 0) {
-      const uploadPromises = files.value.map(file => {
-        const fileName = `${Date.now()}_${file.name}`;
-        return supabase.storage.from('fotos-denuncias').upload(fileName, file);
-      });
+    // Upload de arquivos no bucket 'fotos_videos' e registro na tabela 'fotos_videos'
+    for (const file of files.value) {
+      const ext = file.name.split('.').pop()
+      const fileName = `${denunciaData.id}/${crypto.randomUUID()}.${ext}`
 
-      const uploadResults = await Promise.all(uploadPromises);
-      let errosUpload = 0;
+      const { error: uploadError } = await supabase.storage
+        .from('fotos_videos')
+        .upload(fileName, file, { cacheControl: '3600', upsert: false })
 
-      for (const [index, result] of uploadResults.entries()) {
-        if (result.error) {
-          console.error(`[ReportForm] Falha ao fazer upload de ${files.value[index].name}:`, result.error);
-          errosUpload++;
-          continue;
-        }
+      if (uploadError) throw uploadError
 
-        const urlPublica = supabase.storage.from('fotos-denuncias').getPublicUrl(result.data.path).data.publicUrl;
-        const { error: insertMediaError } = await supabase.from('fotos_videos').insert([{
-          denuncia_id: denuncia.id,
-          url_publica: urlPublica,
-          tipo: files.value[index].type
-        }]);
-
-        if (insertMediaError) {
-          console.error(`[ReportForm] Falha ao registrar mídia no banco:`, insertMediaError);
-          errosUpload++;
-        }
-      }
-
-      if (errosUpload > 0) {
-        error.value = `Atenção: ${errosUpload} mídia(s) não foram enviadas. Denúncia registrada com sucesso.`
-      }
+      await supabase.from('fotos_videos').insert({
+        denuncia_id: denunciaData.id,
+        path: fileName,
+        tipo: file.type.startsWith('image') ? 'imagem' : 'video'
+      })
     }
 
     success.value = 'Denúncia enviada com sucesso!'
-    setTimeout(() => {
-      router.replace('/minhas-denuncias')
-    }, 1500)
-  } catch (err) {
-    console.error('[ReportForm] Erro ao enviar denúncia:', err)
-    error.value = 'Erro ao enviar denúncia. Verifique sua conexão e tente novamente.'
+    titulo.value = ''
+    categoria.value = ''
+    descricao.value = ''
+    endereco.value = ''
+    files.value = []
+
+  } catch (err: any) {
+    console.error(err)
+    error.value = 'Erro ao enviar denúncia: ' + (err.message || err)
   } finally {
     isSubmitting.value = false
   }

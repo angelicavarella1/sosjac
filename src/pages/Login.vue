@@ -1,123 +1,114 @@
 <template>
-  <div class="flex flex-col items-center justify-center min-h-screen bg-gray-100 p-6">
-    <div class="bg-white rounded shadow p-8 max-w-md w-full">
-      <h1 class="text-2xl font-bold mb-6 text-center">Login</h1>
+  <div class="min-h-screen flex flex-col bg-gray-50">
+    <!-- Cabeçalho -->
+    <header class="bg-white shadow p-3 sm:p-4 text-center">
+      <h1 class="text-2xl sm:text-3xl font-bold">SOSJAC</h1>
+    </header>
 
-      <form @submit.prevent="handleLogin" class="space-y-4">
+    <!-- Conteúdo principal -->
+    <main class="flex-1 flex flex-col items-center justify-center p-6">
+      <h2 class="text-2xl font-bold mb-6">Login</h2>
+
+      <form @submit.prevent="handleLogin" class="bg-white p-6 rounded shadow w-full max-w-md space-y-4">
         <div>
-          <label for="email" class="block mb-1 font-medium">E-mail</label>
+          <label class="block mb-1">Email</label>
           <input
-            id="email"
             v-model="email"
             type="email"
+            placeholder="exemplo@dominio.com"
+            class="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
             required
-            class="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="seu@email.com"
           />
         </div>
 
         <div>
-          <label for="senha" class="block mb-1 font-medium">Senha</label>
+          <label class="block mb-1">Senha</label>
           <input
-            id="senha"
-            v-model="senha"
+            v-model="password"
             type="password"
+            placeholder="Mínimo 6 dígitos"
+            minlength="6"
+            class="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
             required
-            class="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="••••••••"
           />
-        </div>
-
-        <div v-if="error" class="text-red-600 text-sm p-2 bg-red-50 rounded">
-          {{ error }}
-        </div>
-        <div v-if="success" class="text-green-600 text-sm p-2 bg-green-50 rounded">
-          {{ success }}
         </div>
 
         <button
           type="submit"
-          :disabled="loading"
-          class="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition font-medium"
+          class="w-full bg-blue-600 text-white p-2 rounded hover:bg-blue-700 font-semibold flex items-center justify-center"
+          :disabled="isSubmitting"
         >
-          <span v-if="loading">Entrando... ⏳</span>
+          <span v-if="isSubmitting">Entrando... ⏳</span>
           <span v-else>Entrar</span>
         </button>
-      </form>
 
-      <p class="mt-4 text-center text-gray-600">
-        Não possui conta?
-        <router-link to="/Register" class="text-blue-600 hover:underline focus:outline-none focus:ring-2 focus:ring-blue-500">
-          Cadastrar-se
-        </router-link>
-      </p>
-    </div>
+        <!-- Mensagens de feedback -->
+        <p v-if="successMessage" class="text-green-600 mt-2 flex items-center gap-2">
+          ✅ {{ successMessage }}
+        </p>
+        <p v-if="errorMessage" class="text-red-600 mt-2 flex items-center gap-2">
+          ❌ {{ errorMessage }}
+        </p>
+
+        <!-- Link de registro -->
+        <p class="text-sm mt-2 text-gray-700">
+          Não tem conta?
+          <span
+            @click="goToRegister"
+            class="text-blue-600 hover:underline cursor-pointer"
+          >Registre-se aqui</span>
+        </p>
+      </form>
+    </main>
+
+    <!-- Rodapé -->
+    <footer class="bg-white shadow p-3 sm:p-4 text-center text-gray-500">
+      &copy; 2025 SOSJAC. Todos os direitos reservados. Angélica Varella
+    </footer>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import { useAuthStore } from '@/store/useAuthStore'
 import { useRouter } from 'vue-router'
+import { useAuthStore } from '@/store/useAuthStore'
 
-// Estado do formulário
-const email = ref<string>('')
-const senha = ref<string>('')
-const error = ref<string>('')
-const success = ref<string>('')
-const loading = ref<boolean>(false)
-
-// Store e router
-const auth = useAuthStore()
+const email = ref('')
+const password = ref('')
+const isSubmitting = ref(false)
+const errorMessage = ref('')
+const successMessage = ref('')
 const router = useRouter()
+const auth = useAuthStore()
 
-async function handleLogin(): Promise<void> {
-  error.value = ''
-  success.value = ''
-  loading.value = true
+async function handleLogin() {
+  errorMessage.value = ''
+  successMessage.value = ''
 
-  // Validação básica no frontend
-  if (!email.value.trim() || !senha.value.trim()) {
-    error.value = 'Preencha e-mail e senha.'
-    loading.value = false
+  if (password.value.length < 6) {
+    errorMessage.value = 'A senha deve ter pelo menos 6 caracteres.'
     return
   }
 
+  isSubmitting.value = true
   try {
-    // Realiza login
-    await auth.login(email.value.trim(), senha.value)
-
-    // Aguarda dados do usuário carregarem
-    await auth.loadUser()
-
-    // Verifica se usuário está banido
-    if (auth.isBanned) {
-      error.value = 'Sua conta está banida. Entre em contato com o administrador.'
-      return
-    }
-
-    // Mensagem de sucesso
-    success.value = 'Login realizado com sucesso! Redirecionando...'
-
-    // Redireciona após 1 segundo
-    setTimeout(() => {
-      router.push('/')
-    }, 1000)
-  } catch (err: unknown) {
-    console.error('[Login.vue] Erro no login:', err)
-    if (err instanceof Error) {
-      if (err.message.includes('banido')) {
-        error.value = 'Sua conta está banida.'
-      } else if (err.message.includes('Invalid login credentials')) {
-        error.value = 'E-mail ou senha inválidos.'
-      } else {
-        error.value = err.message
-      }
+    await auth.login(email.value, password.value)
+    successMessage.value = 'Login realizado com sucesso!'
+    setTimeout(() => router.push('/'), 1000)
+  } catch (err: any) {
+    if (err.message?.includes('Usuário não encontrado')) {
+      errorMessage.value = 'Usuário não existe.'
+    } else if (err.message?.includes('Senha inválida')) {
+      errorMessage.value = 'Senha incorreta.'
     } else {
-      error.value = 'Erro ao tentar fazer login. Verifique sua conexão.'
+      errorMessage.value = err.message || 'Erro ao efetuar login.'
     }
   } finally {
-    loading.value = false
+    isSubmitting.value = false
   }
+}
+
+function goToRegister() {
+  router.push({ name: 'Register' })
 }
 </script>
