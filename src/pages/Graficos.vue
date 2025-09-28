@@ -1,65 +1,145 @@
 <template>
-  <div class="max-w-6xl mx-auto p-6 bg-white rounded shadow mt-6 space-y-6">
-    <!-- Botões de navegação -->
+  <div class="w-full max-w-6xl mt-6 p-6 bg-white rounded shadow space-y-6">
+
     <NavigationButtons />
 
-    <h1 class="text-2xl font-bold mb-6 text-center">Gráficos Administrativos</h1>
-
-    <div v-if="auth.loading || !auth.user" class="flex flex-col items-center justify-center min-h-[300px]">
-      <p class="text-gray-700 font-semibold mb-2">Carregando dados...</p>
-      <div class="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
+    <div class="flex items-center justify-between mb-4">
+      <h1 class="text-2xl font-bold">📈 Gráficos Administrativos</h1>
+      <!-- ✅ Botão Gerar PDF -->
+      <button
+        @click="gerarPDF"
+        class="px-4 py-2 bg-dodgerblue text-white rounded hover:bg-royalblue flex items-center gap-2"
+      >
+        📄 Gerar PDF
+      </button>
     </div>
 
-    <div v-else>
-      <!-- Gráfico de denúncias por categoria -->
+    <div v-if="store.loading" class="flex flex-col items-center justify-center min-h-[300px]">
+      <p class="text-darkslategray font-semibold mb-2">Carregando dados...</p>
+      <div class="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-dodgerblue"></div>
+    </div>
+
+    <div v-else-if="store.error" class="text-red-600 text-center p-4 bg-mistyrose rounded">
+      {{ store.error }}
+    </div>
+
+    <div v-else-if="!store.denunciasPorCategoria.length && !store.denunciasPorSecretaria.length && !store.denunciasPorPeriodo.length" class="text-darkslategray text-center p-6 bg-aliceblue rounded">
+      <p>📊 Nenhum dado disponível para exibir gráficos.</p>
+      <p class="text-sm mt-1">Tente recarregar ou verifique se há denúncias registradas.</p>
+    </div>
+
+    <div v-else class="space-y-8">
       <Charts
         type="bar"
-        :title="'Denúncias por Categoria'"
+        title="Denúncias por Categoria"
         :data="denunciasPorCategoriaChart"
+        @error="onChartError('Denúncias por Categoria')"
       />
 
-      <!-- Gráfico de usuários ativos vs banidos -->
       <Charts
         type="pie"
-        :title="'Usuários Ativos vs Banidos'"
+        title="Denúncias por Status de Usuário"
+        subtitle="Considera denúncias feitas por usuários ATIVOS vs BANIDOS"
         :data="usuariosAtivosBanidosChart"
+        @error="onChartError('Usuários Ativos vs Banidos')"
       />
 
-      <!-- Gráfico de status das denúncias -->
       <Charts
-        type="pie"
-        :title="'Status das Denúncias'"
-        :data="denunciasPorStatusChart"
+        type="bar"
+        title="Denúncias por Secretaria"
+        :data="denunciasPorSecretariaChart"
+        @error="onChartError('Denúncias por Secretaria')"
       />
+
+      <Charts
+        type="bar"
+        title="Evolução das Denúncias (por mês)"
+        :data="denunciasPorPeriodoChart"
+        @error="onChartError('Evolução das Denúncias')"
+      />
+    </div>
+
+    <!-- Exibe erros específicos (opcional) -->
+    <div v-if="Object.keys(chartErrors).length > 0" class="p-4 bg-yellow-50 border border-yellow-200 rounded text-yellow-800 text-sm">
+      <p class="font-semibold">⚠️ Erros encontrados:</p>
+      <ul class="list-disc list-inside mt-1">
+        <li v-for="(erro, nome) in chartErrors" :key="nome">
+          {{ nome }}
+        </li>
+      </ul>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
-import { supabase } from '@/api/supabaseClient'
-import { useAuthStore } from '@/store/useAuthStore'
+import { computed, onMounted, ref } from 'vue'
+import { useRelatoriosStore } from '@/store/useRelatoriosStore'
 import NavigationButtons from '@/components/NavigationButtons.vue'
 import Charts from '@/components/Charts.vue'
+import html2pdf from 'html2pdf.js'
 import type { ChartData } from 'chart.js'
 
-const auth = useAuthStore()
+const CORES_GRAFICOS = {
+  steelblue: '#4682B4',
+  mediumaquamarine: '#66CDAA',
+  slategray: '#708090',
+  aquamarine: '#7FFFD4',
+  midnightblue: '#191970',
+  dodgerblue: '#1E90FF',
+  royalblue: '#4169E1',
+  cornflowerblue: '#6495ED'
+} as const
 
-// Dados para gráficos
-const denunciasPorCategoriaChart = ref<ChartData<'bar', number[], string>>({
-  labels: [],
-  datasets: []
-})
-const usuariosAtivosBanidosChart = ref<ChartData<'pie', number[], string>>({
-  labels: [],
-  datasets: []
-})
-const denunciasPorStatusChart = ref<ChartData<'pie', number[], string>>({
-  labels: [],
-  datasets: []
+const store = useRelatoriosStore()
+const chartErrors = ref<Record<string, boolean>>({})
+
+const denunciasPorCategoriaChart = computed<ChartData<'bar', number[], string>>(() => ({
+  labels: store.denunciasPorCategoria.map(d => formatCategoria(d.categoria)),
+  datasets: [
+    {
+      label: 'Denúncias',
+      data: store.denunciasPorCategoria.map(d => d.total),
+      backgroundColor: CORES_GRAFICOS.steelblue
+    }
+  ]
+}))
+
+const usuariosAtivosBanidosChart = computed<ChartData<'pie', number[], string>>(() => {
+  const denunciasPorUsuariosNaoBanidos = Math.max(0, store.totalDenuncias - store.totalBanidos)
+  return {
+    labels: ['Feitas por usuários ativos', 'Feitas por usuários banidos'],
+    datasets: [
+      {
+        label: 'Denúncias',
+        data: [denunciasPorUsuariosNaoBanidos, store.totalBanidos],
+        backgroundColor: [CORES_GRAFICOS.mediumaquamarine, CORES_GRAFICOS.slategray]
+      }
+    ]
+  }
 })
 
-// Função para formatar categorias
+const denunciasPorSecretariaChart = computed<ChartData<'bar', number[], string>>(() => ({
+  labels: store.denunciasPorSecretaria.map(d => d.secretaria_nome),
+  datasets: [
+    {
+      label: 'Denúncias',
+      data: store.denunciasPorSecretaria.map(d => d.total),
+      backgroundColor: CORES_GRAFICOS.aquamarine
+    }
+  ]
+}))
+
+const denunciasPorPeriodoChart = computed<ChartData<'bar', number[], string>>(() => ({
+  labels: store.denunciasPorPeriodo.map(d => d.mes),
+  datasets: [
+    {
+      label: 'Denúncias',
+      data: store.denunciasPorPeriodo.map(d => d.total),
+      backgroundColor: CORES_GRAFICOS.midnightblue
+    }
+  ]
+}))
+
 function formatCategoria(categoria: string) {
   const map: Record<string, string> = {
     iluminacao_publica: 'Iluminação Pública',
@@ -73,66 +153,33 @@ function formatCategoria(categoria: string) {
   return map[categoria] || categoria
 }
 
-async function loadGraficos() {
-  if (!auth.user || !auth.isAdmin) return
-
-  try {
-    // Denúncias por categoria
-    const { data: denuncias } = await supabase.from('denuncias').select('categoria, status')
-    if (denuncias) {
-      const categoriasCount: Record<string, number> = {}
-      const statusCount: Record<string, number> = {}
-
-      denuncias.forEach(d => {
-        categoriasCount[d.categoria] = (categoriasCount[d.categoria] || 0) + 1
-        statusCount[d.status] = (statusCount[d.status] || 0) + 1
-      })
-
-      denunciasPorCategoriaChart.value = {
-        labels: Object.keys(categoriasCount).map(formatCategoria),
-        datasets: [
-          {
-            label: 'Quantidade',
-            data: Object.values(categoriasCount),
-            backgroundColor: '#3B82F6'
-          }
-        ]
-      }
-
-      denunciasPorStatusChart.value = {
-        labels: Object.keys(statusCount),
-        datasets: [
-          {
-            label: 'Quantidade',
-            data: Object.values(statusCount),
-            backgroundColor: ['#10B981', '#F59E0B', '#EF4444'] // Resolvido, Em andamento, Registrado
-          }
-        ]
-      }
-    }
-
-    // Usuários ativos vs banidos
-    const { count: totalUsuarios } = await supabase.from('usuarios').select('id', { count: 'exact', head: true })
-    const { count: totalBanidos } = await supabase.from('usuarios').select('id', { count: 'exact', head: true }).eq('is_banned', true)
-    const totalAtivos = (totalUsuarios || 0) - (totalBanidos || 0)
-
-    usuariosAtivosBanidosChart.value = {
-      labels: ['Ativos', 'Banidos'],
-      datasets: [
-        {
-          label: 'Usuários',
-          data: [totalAtivos, totalBanidos || 0],
-          backgroundColor: ['#3B82F6', '#EF4444']
-        }
-      ]
-    }
-  } catch (err) {
-    console.error('[Graficos.vue] Erro ao carregar gráficos:', err)
-  }
+function onChartError(chartName: string) {
+  chartErrors.value[chartName] = true
+  console.warn(`[Graficos.vue] Erro ao renderizar gráfico: ${chartName}`)
 }
 
-// Watcher para carregar gráficos assim que o usuário estiver pronto
-watch(() => auth.user, (user) => {
-  if (user) loadGraficos()
-}, { immediate: true })
+function gerarPDF() {
+  const element = document.querySelector('.w-full.max-w-6xl') as HTMLElement
+  if (!element) return
+
+  const opt = {
+    margin: 10,
+    filename: 'graficos-denuncias.pdf',
+    image: { type: 'jpeg' as const, quality: 0.98 },
+    html2canvas: { scale: 2 },
+    jsPDF: { 
+      unit: 'mm' as const, 
+      format: 'a4' as const, 
+      orientation: 'portrait' as const 
+    }
+  }
+
+  html2pdf().set(opt).from(element).save()
+}
+
+onMounted(() => {
+  if (!store.denunciasPorCategoria.length) {
+    store.loadResumo()
+  }
+})
 </script>
