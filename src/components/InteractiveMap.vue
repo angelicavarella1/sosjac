@@ -6,22 +6,32 @@
 
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref } from 'vue'
-import L, { Map as LeafletMap, Marker as LeafletMarker } from 'leaflet'
+import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { supabase } from '@/api/supabaseClient'
-import mapConfig from '@/config/mapConfig.js'
+import mapConfig from '@/config/mapConfig'
 
+// ✅ CORREÇÃO: Corrige ícones do Leaflet no Vite
+delete (window as any).L.Icon.Default.prototype._getIconUrl
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png'
+})
+
+// ✅ Tipagem para a denúncia
 interface Denuncia {
-  id: number
+  id: string
   titulo: string
   descricao: string
   latitude: number
   longitude: number
+  status: 'pendente' | 'aberta' | 'em_progresso' | 'concluida' | 'rejeitada'
 }
 
 const mapContainer = ref<HTMLDivElement | null>(null)
-let map: LeafletMap | null = null
-const markers = ref<LeafletMarker[]>([])
+let map: L.Map | null = null
+let markers: L.Marker[] = []
 
 onMounted(async () => {
   if (!mapContainer.value) return
@@ -35,47 +45,63 @@ onMounted(async () => {
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
   }).addTo(map)
 
-  // @ts-ignore
-  delete L.Icon.Default.prototype._getIconUrl
-  L.Icon.Default.mergeOptions({
-    iconRetinaUrl: new URL('leaflet/dist/images/marker-icon-2x.png', import.meta.url).href,
-    iconUrl: new URL('leaflet/dist/images/marker-icon.png', import.meta.url).href,
-    shadowUrl: new URL('leaflet/dist/images/marker-shadow.png', import.meta.url).href,
-  })
+  map.invalidateSize(true)
 
-  const { data: denuncias, error } = await supabase
-    .from<'denuncias', Denuncia>('denuncias')
-    .select('*')
+  // ✅ CORREÇÃO 1: usar 'data', não 'denuncias'
+  const {  data, error } = await supabase
+    .from('denuncias')
+    .select(`
+      id,
+      titulo,
+      descricao,
+      latitude,
+      longitude,
+      status
+    `)
+    .not('latitude', 'is', null)
+    .not('longitude', 'is', null)
 
   if (error) {
-    console.error(error)
+    console.error('[MapaAdministrativo] Erro ao carregar denúncias:', error)
     return
   }
 
-  denuncias?.forEach(d => {
-    if (map) {
-      const marker: LeafletMarker = L.marker([d.latitude, d.longitude])
-        .addTo(map)
+  // ✅ CORREÇÃO 2: tipagem explícita para 'd'
+  data?.forEach((d: Denuncia) => {
+    if (d.latitude && d.longitude) {
+      const marker = L.marker([d.latitude, d.longitude])
+        .addTo(map!)
         .bindPopup(`
           <b>${d.titulo}</b><br/>
           ${d.descricao}<br/>
-          <a href="/denuncia/${d.id}">Ver Detalhes</a>
+          <small><a class="map-link" href="/denuncia/${d.id}" target="_blank">Ver Detalhes</a></small>
         `)
-      markers.value.push(marker)
+      markers.push(marker)
     }
   })
 })
 
-// ✅ Melhoria: Destruir o mapa quando o componente for desmontado
 onUnmounted(() => {
   if (map) {
     map.remove()
     map = null
   }
-  markers.value = []
+  markers = []
 })
 </script>
 
 <style scoped>
-/* Ajustes opcionais para o mapa */
+.map-link {
+  color: #4169E1; /* royalblue */
+  text-decoration: underline;
+  font-weight: 500;
+}
+
+.map-link:hover {
+  color: #191970; /* midnightblue */
+}
+
+.map-link:active {
+  color: #000080; /* navy */
+}
 </style>

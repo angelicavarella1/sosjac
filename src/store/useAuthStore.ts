@@ -1,5 +1,7 @@
-import { defineStore } from 'pinia';
-import { supabase } from '@/api/supabaseClient';
+// src/store/useAuthStore.ts
+import { defineStore } from 'pinia'
+import { ref } from 'vue'
+import { supabase } from '@/api/supabaseClient'
 
 export const useAuthStore = defineStore('auth', {
   state: () => ({
@@ -10,155 +12,179 @@ export const useAuthStore = defineStore('auth', {
     isBanned: false,
     nome: '',
     listener: null as any,
+    privateLoadingFlag: false,
   }),
 
   getters: {
-    isLoggedIn: (state): boolean => !!state.user,
+    isLoggedIn: (state) => !!state.user,
   },
 
   actions: {
     async loadUser() {
-      this.loading = true;
-      this.isLoaded = false;
-      console.log('[AuthStore] Carregando usuário...');
-
+      console.log('1. [AuthStore] loadUser() iniciado.')
+      if (this.privateLoadingFlag) {
+        console.log('1a. [AuthStore] Já carregando. Interrompendo.')
+        return
+      }
+      this.privateLoadingFlag = true
+      this.loading = true
+      this.isLoaded = false
       try {
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        console.log('2. Tentando obter sessão do Supabase...')
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+        console.log('3. Sessão recebida.')
         if (sessionError || !session?.user) {
-          this.resetAuthState();
-          return;
+          console.log('4. Nenhuma sessão encontrada. Resetando estado.')
+          this.resetAuthState()
+          return
         }
-
-        const user = session.user;
-        this.user = user;
-
-        // Pode não existir usuário cadastrado, usamos maybeSingle
+        const user = session.user
         const { data: userData, error: userError } = await supabase
           .from('usuarios')
-          .select('nome')
+          .select('nome, is_admin, is_banned')
           .eq('id', user.id)
-          .maybeSingle();
-
-        const { data: adminData, error: adminError } = await supabase
-          .from('administradores')
-          .select('id')
-          .eq('id', String(user.id))
-          .maybeSingle();
-
-        const { data: bannedData, error: bannedError } = await supabase
-          .from('bans')
-          .select('id')
-          .eq('id', user.id)
-          .maybeSingle();
-
-        if (userError) console.warn('[AuthStore] erro user:', userError);
-        if (adminError) console.warn('[AuthStore] erro admin:', adminError);
-        if (bannedError) console.warn('[AuthStore] erro banned:', bannedError);
-
-        this.nome = userData?.nome || user.user_metadata?.full_name || user.email;
-        this.isAdmin = !!adminData;
-        this.isBanned = !!bannedData;
-
-        console.log('[AuthStore] Usuário logado:', this.user);
-
-        if (this.isBanned) {
-          await supabase.auth.signOut();
-          this.resetAuthState();
-          console.warn('[AuthStore] Usuário banido.');
+          .single()
+        if (userError) {
+          console.error('❌ Erro ao buscar dados do usuário:', userError)
+          this.user = { ...user } 
+          return
         }
-
-      } catch (err) {
-        console.error('[AuthStore] Erro ao carregar usuário:', err);
-        this.resetAuthState();
+        this.user = {
+          ...user,
+          nome: userData?.nome || user.user_metadata?.full_name || user.email,
+          role: userData?.is_admin ? 'admin' : 'user',
+          is_banned: userData?.is_banned || false,
+        }
+        this.nome = this.user.nome
+        this.isAdmin = this.user.role === 'admin'
+        this.isBanned = this.user.is_banned
+        if (this.isBanned) {
+          console.log('8. Usuário banido. Saindo da sessão.')
+          await supabase.auth.signOut()
+          this.resetAuthState()
+        }
+        console.log('9. Usuário carregado com sucesso.')
+      } catch (err: any) {
+        console.error('❌ Erro fatal durante loadUser:', err)
+        this.resetAuthState()
       } finally {
-        this.loading = false;
-        this.isLoaded = true;
-
-        // Configura listener apenas uma vez
+        this.loading = false
+        this.isLoaded = true
+        this.privateLoadingFlag = false
+        console.log('10. loadUser finalizado.')
         if (!this.listener) {
+          console.log('11. Inicializando listener de sessão.')
           const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
-            console.log('[AuthStore] onAuthStateChange', event, session);
             if (session?.user) {
-              this.user = session.user;
-              this.loadUser(); // atualiza admin/ban
+              this.loadUser() 
             } else {
-              this.resetAuthState();
+              this.resetAuthState()
             }
-          });
-          this.listener = listener;
+          })
+          this.listener = listener
+          console.log('12. Listener inicializado com sucesso.')
         }
       }
     },
 
     resetAuthState() {
-      this.user = null;
-      this.nome = '';
-      this.isAdmin = false;
-      this.isBanned = false;
-      this.loading = false;
-      this.isLoaded = true;
-    },
-
-    async login(email: string, password: string) {
-      this.loading = true;
-      this.resetAuthState();
-      try {
-        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
-        if (!data.user) throw new Error('Falha ao autenticar o usuário.');
-
-        await this.loadUser();
-
-        if (this.isBanned) {
-          await supabase.auth.signOut();
-          throw new Error('Usuário banido.');
+      console.log('🔄 Resetando estado de autenticação.')
+      this.user = null
+      this.nome = ''
+      this.isAdmin = false
+      this.isBanned = false
+      this.loading = false
+      this.isLoaded = true
+      if (this.listener) {
+        try {
+          this.listener.subscription.unsubscribe()
+        } catch (e) {
         }
-      } catch (err: any) {
-        this.resetAuthState();
-        console.error('[AuthStore] login error:', err);
-        throw err;
-      } finally {
-        this.loading = false;
+        this.listener = null
       }
     },
 
-    async register(email: string, password: string, nome: string) {
-      this.loading = true;
-      this.resetAuthState();
+    async login(email: string, password: string) {
+      this.loading = true
+      this.resetAuthState()
       try {
-        const { data, error } = await supabase.auth.signUp({
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+        if (error) throw error
+        if (!data.user) throw new Error('Falha ao autenticar o usuário.')
+        await this.loadUser()
+        if (this.isBanned) {
+          await supabase.auth.signOut()
+          throw new Error('Usuário banido.')
+        }
+      } catch (err: any) {
+        this.resetAuthState()
+        throw err
+      } finally {
+        this.loading = false
+      }
+    },
+
+    async register(email: string, password: string, nomeCompleto: string) {
+      this.loading = true
+      this.resetAuthState()
+      
+      try {
+        // 1. Tentar registrar o usuário no sistema de autenticação,
+        //    enviando o nome diretamente nos metadados.
+        const { data: { user }, error: authError } = await supabase.auth.signUp({
           email,
           password,
-          options: { data: { full_name: nome } }
-        });
-        if (error) throw error;
-        if (!data.user) throw new Error('Falha ao registrar o usuário.');
+          options: {
+            data: { full_name: nomeCompleto }
+          }
+        })
+        if (authError) throw authError
+        if (!user) throw new Error('Falha ao registrar no Auth.')
 
-        this.user = data.user;
-        this.nome = nome;
-        this.isAdmin = false;
-        this.isBanned = false;
+        // 2. Checar se o perfil já existe na tabela 'usuarios'
+        const { data: existingUser } = await supabase
+          .from('usuarios')
+          .select('id')
+          .eq('id', user.id)
+          .single()
+
+        if (existingUser) {
+          console.log('[AuthStore] Perfil de usuário já existe, evitando criação duplicada.')
+          return
+        }
+
+        // 3. Inserir o perfil na sua tabela 'usuarios'
+        const userProfile = {
+          id: user.id, 
+          nome: nomeCompleto, 
+          email: email,
+          is_admin: false, 
+          is_banned: false 
+        }
+
+        const { error: insertError } = await supabase
+          .from('usuarios')
+          .insert(userProfile)
+          
+        if (insertError) throw insertError
+
       } catch (err: any) {
-        console.error('[AuthStore] register error:', err);
-        throw err;
+        console.error('[AuthStore] register error:', err)
+        throw err
       } finally {
-        this.loading = false;
+        this.loading = false
       }
     },
 
     async logout() {
       try {
-        const { error } = await supabase.auth.signOut();
-        if (error) throw error;
+        const { error } = await supabase.auth.signOut()
+        if (error) throw error
       } catch (err: any) {
-        console.error('[AuthStore] logout error:', err);
+        console.error('[AuthStore] logout error:', err)
       } finally {
-        this.resetAuthState();
-        if (this.listener) {
-          this.listener.subscription.unsubscribe();
-          this.listener = null;
-        }
+        this.resetAuthState()
       }
-    },
-  }
-});
+    }
+  },
+})

@@ -1,38 +1,68 @@
 <template>
-  <div class="max-w-5xl mx-auto p-6 bg-white rounded shadow mt-6 space-y-6">
-    <!-- Botões de navegação -->
+  <div class="flex flex-col w-full max-w-6xl mt-6 p-6 bg-white rounded shadow space-y-6">
+
     <NavigationButtons />
 
-    <h1 class="text-2xl font-bold mb-4">Estatísticas Detalhadas</h1>
+    <div class="flex items-center justify-between mb-4">
+      <h1 class="text-2xl font-bold">📊 Estatísticas e Relatórios</h1>
+      <!-- ✅ Botão Gerar PDF (substitui ExportarPDF) -->
+      <button
+        @click="gerarPDF"
+        class="px-4 py-2 bg-dodgerblue text-white rounded hover:bg-royalblue flex items-center gap-2"
+      >
+        📄 Gerar PDF
+      </button>
+    </div>
 
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-      <div class="p-4 bg-gray-100 rounded shadow">
-        <p class="text-lg font-bold">Denúncias por Categoria</p>
-        <ul class="mt-2 list-disc list-inside text-gray-700">
-          <li v-for="(count, cat) in denunciasPorCategoria" :key="cat">
-            {{ formatCategoria(cat) }}: {{ count }}
+    <div v-if="store.loading" class="text-darkslategray">Carregando estatísticas...</div>
+    <div v-if="store.error" class="text-red-600">{{ store.error }}</div>
+
+    <div v-else class="estatisticas-list">
+      <div class="mb-6">
+        <p class="text-lg font-semibold">Resumo Geral</p>
+        <ul class="list-disc list-inside text-darkslategray mt-2">
+          <li>Total de denúncias: {{ store.totalDenuncias }}</li>
+          <li>Total de usuários banidos: {{ store.totalBanidos }}</li>
+        </ul>
+      </div>
+
+      <div class="mb-6">
+        <p class="text-lg font-semibold">Denúncias por Categoria</p>
+        <ul class="list-disc list-inside text-darkslategray mt-2">
+          <li v-for="(item, index) in store.denunciasPorCategoria" :key="item.categoria + '-' + index">
+            {{ formatCategoria(item.categoria) }}: {{ item.total }}
           </li>
         </ul>
       </div>
-      <div class="p-4 bg-gray-100 rounded shadow">
-        <p class="text-lg font-bold">Usuários Ativos vs Banidos</p>
-        <p class="mt-2 text-gray-700">Ativos: {{ totalAtivos }}</p>
-        <p class="text-gray-700">Banidos: {{ totalBanidos }}</p>
+
+      <div class="mb-6">
+        <p class="text-lg font-semibold">Denúncias por Secretaria</p>
+        <ul class="list-disc list-inside text-darkslategray mt-2">
+          <li v-for="(item, index) in store.denunciasPorSecretaria" :key="item.secretaria_nome + '-' + index">
+            {{ formatSecretaria(item.secretaria_nome) }}: {{ item.total }}
+          </li>
+        </ul>
+      </div>
+
+      <div class="mb-6">
+        <p class="text-lg font-semibold">Evolução das Denúncias (por mês)</p>
+        <ul class="list-disc list-inside text-darkslategray mt-2">
+          <li v-for="(item, index) in store.denunciasPorPeriodo" :key="item.mes + '-' + index">
+            {{ item.mes }}: {{ item.total }} denúncias
+          </li>
+        </ul>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
-import { supabase } from '@/api/supabaseClient'
-import { useAuthStore } from '@/store/useAuthStore'
+import { onMounted } from 'vue'
+import { useRelatoriosStore } from '@/store/useRelatoriosStore'
 import NavigationButtons from '@/components/NavigationButtons.vue'
+import html2pdf from 'html2pdf.js'
 
-const auth = useAuthStore()
-const denunciasPorCategoria = ref<Record<string, number>>({})
-const totalAtivos = ref(0)
-const totalBanidos = ref(0)
+const store = useRelatoriosStore()
 
 function formatCategoria(categoria: string) {
   const map: Record<string, string> = {
@@ -47,27 +77,30 @@ function formatCategoria(categoria: string) {
   return map[categoria] || categoria
 }
 
-async function loadEstatisticas() {
-  if (!auth.user) return
-
-  try {
-    const { data: denunciasData } = await supabase.from('denuncias').select('categoria')
-    denunciasPorCategoria.value = {}
-    denunciasData?.forEach(d => {
-      denunciasPorCategoria.value[d.categoria] = (denunciasPorCategoria.value[d.categoria] || 0) + 1
-    })
-
-    const { count: totalUsuarios } = await supabase.from('usuarios').select('id', { count: 'exact', head: true })
-    const { count: totalBans } = await supabase.from('usuarios').select('id', { count: 'exact', head: true }).eq('is_banned', true)
-
-    totalBanidos.value = totalBans || 0
-    totalAtivos.value = (totalUsuarios || 0) - totalBanidos.value
-  } catch (err) {
-    console.error('[Estatisticas.vue] erro ao carregar estatísticas:', err)
+function formatSecretaria(secretaria: string) {
+  const map: Record<string, string> = {
+    educacao: 'Educação',
+    saude: 'Saúde',
+    infraestrutura: 'Infraestrutura',
+    seguranca: 'Segurança',
+    outros: 'Outros'
   }
+  return map[secretaria] || secretaria
 }
 
-watch(() => auth.user, (newUser) => {
-  if (newUser) loadEstatisticas()
-}, { immediate: true })
+function gerarPDF() {
+  const element = document.querySelector('.flex.flex-col.w-full.max-w-6xl') as HTMLElement
+  if (!element) return
+  html2pdf().from(element).save('estatisticas-denuncias.pdf')
+}
+
+onMounted(() => {
+  store.loadResumo()
+})
 </script>
+
+<style scoped>
+.estatisticas-list ul {
+  margin-top: 0.25rem;
+}
+</style>

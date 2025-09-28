@@ -1,88 +1,121 @@
 <template>
-  <!-- Botões de navegação -->
-  <NavigationButtons />
+  <div class="flex flex-col w-full max-w-5xl mx-auto p-4">
+    <div class="bg-white rounded-xl shadow p-6 mt-6 space-y-6">
+      <NavigationButtons />
+      <h1 class="text-2xl font-bold mb-4">📋 Minhas Denúncias</h1>
 
-  <!-- Loading -->
-  <div v-if="auth.loading || !auth.user" class="flex flex-col items-center justify-center min-h-screen bg-gray-100 p-6">
-    <p class="text-xl text-gray-700 font-semibold">Carregando suas denúncias...</p>
-    <div class="mt-4 animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
-  </div>
-
-  <!-- Conteúdo -->
-  <div v-else class="max-w-5xl mx-auto p-6 bg-white rounded shadow-md mt-6 space-y-6">
-    <h1 class="text-2xl font-bold mb-4 text-center">Minhas Denúncias</h1>
-
-    <div v-if="loading" class="text-gray-500 text-center">Carregando...</div>
-    <div v-else-if="denuncias.length === 0" class="text-gray-600 text-center">Você ainda não registrou nenhuma denúncia.</div>
-
-    <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-6">
-      <div v-for="denuncia in denuncias" :key="denuncia.id"
-           class="border rounded p-4 hover:shadow-lg cursor-pointer transition transform hover:scale-105"
-           @click="verDetalhe(denuncia.id)">
-        <h2 class="font-bold text-lg mb-2">{{ denuncia.titulo }}</h2>
-        <p class="text-gray-700 mb-2 whitespace-pre-line">{{ denuncia.descricao.substring(0,100) }}...</p>
-        <p class="text-sm text-gray-500">Categoria: {{ formatCategoria(denuncia.categoria) }}</p>
-        <p class="text-sm text-gray-500">Criado em: {{ formatDate(denuncia.created_at) }}</p>
+      <div v-if="loading" class="text-darkslategray flex justify-center items-center h-32">
+        <span class="animate-spin border-4 border-dodgerblue border-t-transparent rounded-full w-8 h-8 mr-2"></span>
+        Carregando suas denúncias...
       </div>
+
+      <div v-else-if="denuncias.length === 0" class="text-darkslategray text-center py-8">
+        Você ainda não fez nenhuma denúncia.
+      </div>
+
+      <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div
+          v-for="d in denuncias"
+          :key="d.id"
+          class="p-4 border border-cornflowerblue rounded bg-white transition-transform transform hover:-translate-y-2 hover:scale-105 hover:shadow-lg"
+        >
+          <h2 class="font-bold text-lg mb-2">{{ d.titulo }}</h2>
+          <p class="text-darkslategray mb-2 overflow-hidden text-wrap">{{ d.descricao.substring(0, 100) }}...</p>
+          <p class="text-sm text-darkslategray mb-1">Categoria: {{ formatCategoria(d.categoria) }}</p>
+          <p class="text-sm text-darkslategray">Criado em: {{ formatDate(d.created_at) }}</p>
+          <p class="text-sm text-darkslategray">Status: {{ formatStatus(d.status) }}</p>
+
+          <div class="mt-3 flex justify-between">
+            <button
+              @click="verDetalhe(d.id)"
+              class="text-royalblue hover:text-navy text-sm font-medium"
+            >
+              Ver Detalhes
+            </button>
+            <!-- ✅ REMOVIDO: "Enviar Email" não aparece nas minhas denúncias -->
+          </div>
+        </div>
+      </div>
+
+      <div v-if="error" class="text-red-600 mt-4 p-3 bg-mistyrose rounded-xl">{{ error }}</div>
     </div>
 
-    <div v-if="error" class="text-red-600 mt-4 p-3 bg-red-50 rounded text-center">{{ error }}</div>
+    <!-- ❌ REMOVIDO: Modal de e-mail não é usado aqui -->
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, onMounted, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { supabase } from '@/api/supabaseClient'
-import { useAuthStore } from '@/store/useAuthStore'
 import NavigationButtons from '@/components/NavigationButtons.vue'
+// ❌ REMOVIDO: EnviarEmailModal não é usado aqui
+import { formatCategoria, formatStatus } from '@/utils/formatters'
+import { useAuthStore } from '@/store/useAuthStore'
 
-interface Denuncia { 
-  id: string; 
-  titulo: string; 
-  descricao: string; 
-  categoria: string; 
-  created_at: string 
+// ✅ Denuncia.id agora é string (UUID do Supabase)
+interface Denuncia {
+  id: string
+  titulo: string
+  descricao: string
+  categoria: string
+  status: 'pendente' | 'aberta' | 'em_progresso' | 'concluida' | 'rejeitada'
+  created_at: string
+  user_id: string
+  autor_nome?: string
 }
 
 const auth = useAuthStore()
-const router = useRouter()
 const denuncias = ref<Denuncia[]>([])
 const loading = ref(true)
 const error = ref('')
+const router = useRouter()
+const route = useRoute()
 
-function formatCategoria(categoria: string) {
-  const map: Record<string,string> = {
-    iluminacao_publica: 'Iluminação Pública',
-    saneamento_basico: 'Saneamento Básico',
-    limpeza_conservacao: 'Limpeza e Conservação',
-    pavimentacao_asfalto: 'Pavimentação/Asfalto',
-    seguranca_publica: 'Segurança Pública',
-    posto_saude: 'Posto de Saúde',
-    outros: 'Outros'
-  }
-  return map[categoria] || categoria
-}
-
-function formatDate(dateStr: string) {
-  return new Date(dateStr).toLocaleDateString('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric' })
-}
-
-function verDetalhe(id: string) { router.push({ name: 'DenunciaDetalhe', params: { id } }) }
+// ❌ REMOVIDO: refs de modal de e-mail
+// const showEmailModal = ref(false)
+// const denunciaSelecionada = ref<Denuncia | null>(null)
 
 async function loadDenuncias() {
-  if (!auth.user) return
+  if (!auth.user?.id) return
+
   loading.value = true
   error.value = ''
+
   try {
     const { data, error: supaError } = await supabase
       .from('denuncias')
-      .select('*')
+      .select(`
+        id,
+        titulo,
+        descricao,
+        status,
+        created_at,
+        user_id,
+        denuncia_categorias (
+          categorias (
+            nome
+          )
+        )
+      `)
       .eq('user_id', auth.user.id)
-      .order('created_at', { ascending:false })
+      .order('created_at', { ascending: false })
+
     if (supaError) throw supaError
-    denuncias.value = data || []
-  } catch (err) {
+
+    denuncias.value = (data || []).map(d => {
+      const categoriasNomes = d.denuncia_categorias
+        ?.map((dc: any) => dc.categorias?.nome)
+        .filter((nome: string | undefined): nome is string => !!nome)
+        || []
+
+      return {
+        ...d,
+        id: d.id.toString(),
+        categoria: categoriasNomes.length > 0 ? categoriasNomes.join(', ') : 'Sem categoria'
+      }
+    })
+  } catch (err: any) {
     console.error('[MinhasDenuncias.vue] erro:', err)
     error.value = 'Erro ao carregar suas denúncias.'
   } finally {
@@ -90,8 +123,27 @@ async function loadDenuncias() {
   }
 }
 
-onMounted(() => { 
-  if(auth.user) loadDenuncias()
-  else router.replace('/login')
+function formatDate(dateStr: string) {
+  return new Date(dateStr).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })
+}
+
+function verDetalhe(id: string) {
+  router.push({ name: 'DenunciaDetalhe', params: { id } })
+}
+
+// ❌ REMOVIDO: openEmailModal
+
+// Segurança: só carrega quando auth está pronto
+onMounted(() => {
+  if (auth.isLoaded) {
+    loadDenuncias()
+  } else {
+    const unwatch = watch(() => auth.isLoaded, (isLoaded: boolean) => {
+      if (isLoaded) {
+        loadDenuncias()
+        unwatch()
+      }
+    })
+  }
 })
 </script>

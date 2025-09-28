@@ -1,114 +1,147 @@
 <template>
-  <div class="min-h-screen flex flex-col bg-gray-50">
-    <!-- Cabeçalho -->
-    <header class="bg-white shadow p-3 sm:p-4 text-center">
-      <h1 class="text-2xl sm:text-3xl font-bold">SOSJAC</h1>
-    </header>
+  <div class="min-h-screen flex flex-col">
+    <AppHeader />
 
-    <!-- Conteúdo principal -->
     <main class="flex-1 flex flex-col items-center justify-center p-6">
       <h2 class="text-2xl font-bold mb-6">Login</h2>
 
+      <!-- ✅ Mantido: Cabeçalho e Rodapé preservados -->
       <form @submit.prevent="handleLogin" class="bg-white p-6 rounded shadow w-full max-w-md space-y-4">
-        <div>
-          <label class="block mb-1">Email</label>
-          <input
-            v-model="email"
-            type="email"
-            placeholder="exemplo@dominio.com"
-            class="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-            required
-          />
-        </div>
+        <fieldset :disabled="isSubmitting" class="space-y-4">
+          <div>
+            <label class="block mb-1 text-sm font-medium text-darkslategray" for="email">Email</label>
+            <input
+              id="email"
+              v-model.trim="email"
+              type="email"
+              placeholder="exemplo@dominio.com"
+              class="w-full p-2 border border-cornflowerblue rounded-md focus:outline-none focus:ring-2 focus:ring-dodgerblue focus:border-transparent"
+              required
+            />
+          </div>
 
-        <div>
-          <label class="block mb-1">Senha</label>
-          <input
-            v-model="password"
-            type="password"
-            placeholder="Mínimo 6 dígitos"
-            minlength="6"
-            class="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-            required
-          />
-        </div>
+          <div>
+            <label class="block mb-1 text-sm font-medium text-darkslategray" for="password">Senha</label>
+            <input
+              id="password"
+              v-model="password"
+              type="password"
+              placeholder="Mínimo 6 dígitos"
+              minlength="6"
+              class="w-full p-2 border border-cornflowerblue rounded-md focus:outline-none focus:ring-2 focus:ring-dodgerblue focus:border-transparent"
+              required
+            />
+          </div>
 
-        <button
-          type="submit"
-          class="w-full bg-blue-600 text-white p-2 rounded hover:bg-blue-700 font-semibold flex items-center justify-center"
-          :disabled="isSubmitting"
-        >
-          <span v-if="isSubmitting">Entrando... ⏳</span>
-          <span v-else>Entrar</span>
-        </button>
+          <button
+            type="submit"
+            class="w-full bg-steelblue text-white p-2 rounded-md hover:bg-royalblue font-semibold flex items-center justify-center transition-colors disabled:opacity-50"
+            :aria-busy="isSubmitting"
+          >
+            <span v-if="isSubmitting" class="flex items-center gap-2">
+              <span class="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></span>
+              Entrando... ⏳
+            </span>
+            <span v-else>Entrar</span>
+          </button>
+        </fieldset>
 
-        <!-- Mensagens de feedback -->
-        <p v-if="successMessage" class="text-green-600 mt-2 flex items-center gap-2">
+        <p v-if="successMessage" class="text-mediumaquamarine mt-2 flex items-center gap-2 text-sm">
           ✅ {{ successMessage }}
         </p>
-        <p v-if="errorMessage" class="text-red-600 mt-2 flex items-center gap-2">
+        <p v-if="errorMessage" class="text-red-600 mt-2 flex items-center gap-2 text-sm">
           ❌ {{ errorMessage }}
         </p>
 
-        <!-- Link de registro -->
-        <p class="text-sm mt-2 text-gray-700">
+        <p class="text-sm mt-4 text-darkslategray text-center">
           Não tem conta?
-          <span
-            @click="goToRegister"
-            class="text-blue-600 hover:underline cursor-pointer"
-          >Registre-se aqui</span>
+          <router-link to="/register" class="text-dodgerblue hover:underline font-medium">
+            Registre-se aqui
+          </router-link>
         </p>
       </form>
     </main>
 
-    <!-- Rodapé -->
-    <footer class="bg-white shadow p-3 sm:p-4 text-center text-gray-500">
-      &copy; 2025 SOSJAC. Todos os direitos reservados. Angélica Varella
-    </footer>
+    <AppFooter />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, onMounted, onBeforeUnmount } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/store/useAuthStore'
+import AppHeader from '@/components/AppHeader.vue'
+import AppFooter from '@/components/AppFooter.vue'
 
+// Estado do formulário
 const email = ref('')
 const password = ref('')
 const isSubmitting = ref(false)
 const errorMessage = ref('')
 const successMessage = ref('')
+
 const router = useRouter()
+const route = useRoute()
 const auth = useAuthStore()
+
+// Mensagens centralizadas
+const errorMessages: Record<string, string> = {
+  invalid: 'Credenciais de login inválidas. Verifique seu e-mail e senha.',
+  banned: 'Acesso negado. Sua conta foi banida.',
+  unexpected: 'Ocorreu um erro inesperado. Tente novamente mais tarde.'
+}
+
+// Feedback de registro via query
+onMounted(() => {
+  if (route.query.registerSuccess === 'true') {
+    successMessage.value = 'Registro realizado com sucesso! Faça login agora.'
+  }
+})
+
+// ✅ Limpa mensagem de sucesso ao sair da página
+onBeforeUnmount(() => {
+  successMessage.value = ''
+})
 
 async function handleLogin() {
   errorMessage.value = ''
   successMessage.value = ''
 
-  if (password.value.length < 6) {
-    errorMessage.value = 'A senha deve ter pelo menos 6 caracteres.'
+  // ✅ Validação adicional (embora o HTML já faça isso)
+  if (!email.value || password.value.length < 6) {
+    errorMessage.value = 'Informe um e-mail válido e senha com pelo menos 6 caracteres.'
     return
   }
 
   isSubmitting.value = true
   try {
     await auth.login(email.value, password.value)
-    successMessage.value = 'Login realizado com sucesso!'
-    setTimeout(() => router.push('/'), 1000)
+
+    // ✅ Nova Verificação de Segurança: Garante que o usuário não está banido
+    if (auth.user?.is_banned) {
+      throw new Error('Usuário banido')
+    }
+
+    // Reset do formulário
+    email.value = ''
+    password.value = ''
+
+    // Redireciona para a página inicial
+    router.push('/')
   } catch (err: any) {
-    if (err.message?.includes('Usuário não encontrado')) {
-      errorMessage.value = 'Usuário não existe.'
-    } else if (err.message?.includes('Senha inválida')) {
-      errorMessage.value = 'Senha incorreta.'
+    console.error('Erro de login:', err)
+
+    const msg = (err?.message || '').toLowerCase() || JSON.stringify(err)
+
+    if (msg.includes('invalid login credentials') || msg.includes('invalid_grant')) {
+      errorMessage.value = errorMessages.invalid
+    } else if (msg.includes('usuário banido') || msg.includes('banned')) {
+      errorMessage.value = errorMessages.banned
     } else {
-      errorMessage.value = err.message || 'Erro ao efetuar login.'
+      errorMessage.value = errorMessages.unexpected
     }
   } finally {
     isSubmitting.value = false
   }
-}
-
-function goToRegister() {
-  router.push({ name: 'Register' })
 }
 </script>

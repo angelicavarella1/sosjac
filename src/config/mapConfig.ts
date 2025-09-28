@@ -1,4 +1,3 @@
-// src/config/mapConfig.ts
 interface MapConfig {
   center: {
     lat: number

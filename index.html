@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>SOSJAC</title>
 
-    <!-- Pré-carrega fonte Inter (opcional, mas recomendado) -->
+    <!-- Pré-carrega fonte Inter -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -14,11 +14,33 @@
       rel="stylesheet"
     />
 
-    <!-- Evita indexação em ambientes de desenvolvimento (opcional) -->
+    <!-- Configurações para PWA -->
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#1976D2" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
+
+    <!-- Evita indexação em ambientes de desenvolvimento -->
     <!-- <meta name="robots" content="noindex, nofollow" /> -->
   </head>
   <body>
     <div id="app"></div>
     <script type="module" src="/src/main.ts"></script>
+
+    <!-- Registro do Service Worker para PWA -->
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js')
+            .then((registration) => {
+              console.log('SW registrado com sucesso:', registration);
+            })
+            .catch((error) => {
+              console.log('Falha ao registrar o SW:', error);
+            });
+        });
+      }
+    </script>
   </body>
 </html>
