@@ -1,12 +1,12 @@
 # ======================
-# VariÃ¡veis de ambiente
+# Variáveis de ambiente
 # ======================
 .env
 .env.local
 .env.*.local
 
 # ======================
-# Pastas de build / dependÃªncias
+# Pastas de build / dependências
 # ======================
 node_modules/
 dist/
@@ -52,4 +52,3 @@ Desktop.ini
 .cache/
 *.zip
 *.tar.gz
-node_modules
