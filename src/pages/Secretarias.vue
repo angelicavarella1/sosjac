@@ -206,8 +206,8 @@ onMounted(async () => {
       secretario: s.secretario ?? null,
       endereco: s.endereco ?? null,
       telefone: s.telefone ?? null,
-      email: s.email_contato,  // ✅ corrige para email_contato do banco
-      site: s.site ?? null      // ✅ adiciona site
+      email: s.email_contato,
+      site: s.site ?? null
     }))
   } catch (err) {
     console.error('Erro ao carregar secretarias:', err)
@@ -246,6 +246,7 @@ Maricá – RJ, CEP: 24.934-405`
   showModalEmail.value = true
 }
 
+// ✅✅✅ FUNÇÃO CORRIGIDA - Use a função CORRETA para secretarias
 async function enviarEmail() {
   if (!emailPara.value || !emailAssunto.value || !emailCorpo.value.trim()) {
     alert('Preencha todos os campos do e-mail.')
@@ -253,25 +254,59 @@ async function enviarEmail() {
   }
 
   enviandoEmail.value = true
+  
   try {
-    const { error } = await supabase.functions.invoke('enviar-email', {
+    // 🔍 DEBUG: Log dos dados que serão enviados
+    console.log('📤 Enviando email para SECRETARIA (função: enviar-email-generico):', {
+      destinatario: emailPara.value,
+      assunto: emailAssunto.value,
+      corpo: emailCorpo.value.substring(0, 200) + '...',
+      origem: 'Secretarias.vue'
+    });
+
+    // ✅✅✅ CORREÇÃO: Use a função CORRETA para secretarias
+    const { data, error } = await supabase.functions.invoke('enviar-email-generico', {
       body: {
-        denuncia_id: null,
-        to: emailPara.value,
-        subject: emailAssunto.value,
-        text: emailCorpo.value
+        destinatario: emailPara.value.trim(),
+        assunto: emailAssunto.value.trim(),
+        corpo: emailCorpo.value.trim()
       }
-    })
+    });
 
-    if (error) throw error
+    if (error) {
+      console.error('❌ Erro detalhado da função Edge (enviar-email-generico):', {
+        error,
+        status: error.status,
+        message: error.message,
+        context: error.context
+      });
+      throw error;
+    }
 
-    alert('✅ E-mail enviado com sucesso!')
-    fecharModalEmail()
+    console.log('✅ Email para secretaria enviado com sucesso:', data);
+    alert('✅ E-mail enviado com sucesso!');
+    fecharModalEmail();
+    
   } catch (err: any) {
-    console.error('Erro ao enviar e-mail:', err)
-    alert('❌ Falha ao enviar e-mail: ' + (err.message || 'tente novamente'))
+    console.error('❌ Erro completo ao enviar e-mail para secretaria:', err);
+    
+    let mensagemErro = 'Falha ao enviar e-mail. ';
+    
+    if (err.status === 400) {
+      mensagemErro += 'Dados inválidos enviados para o servidor.';
+    } else if (err.status === 401) {
+      mensagemErro += 'Não autorizado. Faça login novamente.';
+    } else if (err.status === 403) {
+      mensagemErro += 'Apenas administradores podem enviar e-mails.';
+    } else if (err.status === 500) {
+      mensagemErro += 'Erro interno do servidor. Tente novamente mais tarde.';
+    } else {
+      mensagemErro += err.message || 'Tente novamente.';
+    }
+    
+    alert('❌ ' + mensagemErro);
   } finally {
-    enviandoEmail.value = false
+    enviandoEmail.value = false;
   }
 }
 

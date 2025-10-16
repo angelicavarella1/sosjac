@@ -60,7 +60,7 @@
             <p v-if="denuncia.complemento" class="text-darkslategray">Complemento: {{ denuncia.complemento }}</p>
           </div>
 
-          <!-- ✅ Seção de Mídias Atualizada -->
+          <!-- Seção de Mídias -->
           <div class="flex-1">
             <h2 class="mb-2 text-lg font-semibold">Mídias</h2>
             <div v-if="midias.length" class="space-y-3">
@@ -88,7 +88,7 @@
                 </template>
               </div>
 
-              <!-- Miniaturas (máximo 5) -->
+              <!-- Miniaturas -->
               <div v-if="midias.length > 1" class="pt-2">
                 <div class="flex space-x-2 overflow-x-auto pb-1">
                   <div
@@ -140,7 +140,7 @@
           </ul>
         </div>
 
-        <!-- ✅ Botão de Anexos: só aparece se status for 'pendente' -->
+        <!-- Botão de Anexos -->
         <div v-if="denuncia.status === 'pendente'" class="mt-4">
           <button
             @click="abrirModalAnexos"
@@ -150,7 +150,7 @@
           </button>
         </div>
 
-        <!-- ✅ Comentários: SÓ PARA ADMINISTRADORES -->
+        <!-- Comentários: SÓ PARA ADMINISTRADORES -->
         <div v-if="auth.isAdmin" class="mt-6">
           <h3 class="text-lg font-semibold mb-2">💬 Comentários</h3>
           <div v-if="comentarios.length" class="space-y-3">
@@ -164,7 +164,7 @@
           </div>
           <p v-else class="text-gray-500 italic">Nenhum comentário ainda.</p>
 
-          <!-- Formulário de novo comentário (só aparece se for admin) -->
+          <!-- Formulário de novo comentário -->
           <div class="mt-4 pt-4 border-t border-gray-200">
             <h4 class="font-medium text-gray-800 mb-2">Adicionar comentário</h4>
             <textarea
@@ -184,7 +184,7 @@
           </div>
         </div>
 
-        <!-- ✅ Sugestão de Secretarias: SÓ PARA ADMINISTRADORES -->
+        <!-- Sugestão de Secretarias: SÓ PARA ADMINISTRADORES -->
         <div
           v-if="auth.isAdmin && sugestoesSecretarias.length"
           class="mt-6 rounded border p-4 bg-white border-darkslategray"
@@ -239,7 +239,7 @@
           </button>
         </div>
 
-        <!-- ✅ Botão Gerar PDF: só para administradores -->
+        <!-- Botão Gerar PDF: só para administradores -->
         <div v-if="auth.isAdmin" class="mt-6 flex flex-wrap gap-4">
           <button
             @click="gerarPDF"
@@ -255,7 +255,7 @@
       </div>
     </div>
 
-    <!-- ✅ Modal de Anexos -->
+    <!-- Modal de Anexos -->
     <div v-if="showModalAnexos" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div class="bg-white rounded-lg p-6 w-full max-w-2xl">
         <div class="flex justify-between items-center mb-4">
@@ -287,7 +287,7 @@
       </div>
     </div>
 
-    <!-- ✅ Modal de E-mail para Secretaria -->
+    <!-- Modal de E-mail para Secretaria -->
     <div v-if="showModalEmail" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div class="bg-white rounded-lg p-6 w-full max-w-3xl max-h-[90vh] overflow-y-auto">
         <div class="flex justify-between items-center mb-4">
@@ -453,19 +453,19 @@ const enviandoComentario = ref(false)
 const showModalAnexos = ref(false)
 const arquivoParaUpload = ref<File | null>(null)
 
-// ✅ Refs para modal de e-mail
+// Refs para modal de e-mail
 const showModalEmail = ref(false)
 const emailPara = ref('')
 const emailAssunto = ref('')
 const emailCorpo = ref('')
 const enviandoEmail = ref(false)
 
-// Formatação
-function formatarData(dataStr: string) {
+// ✅ FUNÇÕES DE FORMATAÇÃO (exportadas)
+const formatarData = (dataStr: string) => {
   return new Date(dataStr).toLocaleString('pt-BR')
 }
 
-function formatCategoria(cat: string) {
+const formatCategoria = (cat: string) => {
   const map: Record<string, string> = {
     iluminacao_publica: 'Iluminação Pública',
     saneamento_basico: 'Saneamento Básico',
@@ -476,10 +476,10 @@ function formatCategoria(cat: string) {
     geral: 'Geral',
     outros: 'Outros'
   }
-  return map[cat.toLowerCase()] || cat
+  return map[cat] || cat
 }
 
-function formatStatus(status: string) {
+const formatStatus = (status: string) => {
   const map: Record<string, string> = {
     pendente: 'Pendente',
     aberta: 'Aberta',
@@ -490,27 +490,27 @@ function formatStatus(status: string) {
   return map[status] || status
 }
 
-function getMapaIframeUrl(lat: number, lng: number) {
+const getMapaIframeUrl = (lat: number, lng: number) => {
   const zoom = 18
   const delta = 0.001
   return `https://www.openstreetmap.org/export/embed.html?bbox=${lng - delta},${lat - delta},${lng + delta},${lat + delta}&layer=mapnik&marker=${lat},${lng}`
 }
 
-function getMapaLink(lat: number, lng: number) {
+const getMapaLink = (lat: number, lng: number) => {
   return `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lng}#map=18/${lat}/${lng}`
 }
 
-function getMidiaUrl(item: Midia) {
+const getMidiaUrl = (item: Midia) => {
   if (!item.caminho) return ''
   const { data } = supabase.storage.from('fotos_videos').getPublicUrl(item.caminho)
   return data?.publicUrl || ''
 }
 
-function getFileExtension(filename: string): string {
+const getFileExtension = (filename: string): string => {
   return filename.split('.').pop()?.toLowerCase() || ''
 }
 
-function getVideoType(ext: string): string {
+const getVideoType = (ext: string): string => {
   const map: Record<string, string> = {
     mp4: 'mp4',
     webm: 'webm',
@@ -523,28 +523,28 @@ function getVideoType(ext: string): string {
   return `video/${map[ext] || 'mp4'}`
 }
 
-function selecionarMidia(midia: Midia) {
+const selecionarMidia = (midia: Midia) => {
   midiaSelecionada.value = midia
 }
 
-// Funções para anexos
-function abrirModalAnexos() {
+// ✅ FUNÇÕES PARA ANEXOS
+const abrirModalAnexos = () => {
   showModalAnexos.value = true
 }
 
-function fecharModalAnexos() {
+const fecharModalAnexos = () => {
   showModalAnexos.value = false
   arquivoParaUpload.value = null
 }
 
-function handleFileUpload(event: Event) {
+const handleFileUpload = (event: Event) => {
   const input = event.target as HTMLInputElement
   if (input.files?.length) {
     arquivoParaUpload.value = input.files[0]
   }
 }
 
-async function uploadAnexo() {
+const uploadAnexo = async () => {
   if (!arquivoParaUpload.value || !denuncia.value?.id) return
 
   const file = arquivoParaUpload.value
@@ -611,7 +611,8 @@ async function uploadAnexo() {
   }
 }
 
-async function loadDenuncia() {
+// ✅ FUNÇÃO PARA CARREGAR DENÚNCIA
+const loadDenuncia = async () => {
   loading.value = true
   denuncia.value = null
   autor.value = null
@@ -819,7 +820,8 @@ async function loadDenuncia() {
   }
 }
 
-async function adicionarComentario() {
+// ✅ FUNÇÃO PARA ADICIONAR COMENTÁRIO
+const adicionarComentario = async () => {
   if (!novoComentario.value.trim() || !denuncia.value?.id || !auth.user?.id) return
 
   enviandoComentario.value = true
@@ -869,7 +871,8 @@ async function adicionarComentario() {
   }
 }
 
-function gerarPDF() {
+// ✅ FUNÇÃO PARA GERAR PDF
+const gerarPDF = () => {
   const element = document.querySelector('.max-w-4xl') as HTMLElement | null
   if (!element || !denuncia.value) return
 
@@ -917,7 +920,8 @@ function gerarPDF() {
     })
 }
 
-async function atualizarStatus(novoStatus: StatusDenuncia, mensagem: string) {
+// ✅ FUNÇÃO PARA ATUALIZAR STATUS
+const atualizarStatus = async (novoStatus: StatusDenuncia, mensagem: string) => {
   if (!denuncia.value?.id || !auth.user?.id) {
     successMessage.value = '❌ Usuário não autenticado.'
     return
@@ -946,7 +950,8 @@ async function atualizarStatus(novoStatus: StatusDenuncia, mensagem: string) {
   }
 }
 
-function abrirModalEmail(secretaria: SecretariaSugestao) {
+// ✅ FUNÇÕES PARA EMAIL
+const abrirModalEmail = (secretaria: SecretariaSugestao) => {
   if (!denuncia.value) return
 
   const categoriaFormatada = formatCategoria(denuncia.value.categoria)
@@ -978,7 +983,15 @@ Maricá – RJ, CEP: 24.934-405`
   showModalEmail.value = true
 }
 
-async function enviarEmailParaSecretaria() {
+const fecharModalEmail = () => {
+  showModalEmail.value = false
+  emailPara.value = ''
+  emailAssunto.value = ''
+  emailCorpo.value = ''
+}
+
+// ✅✅✅ FUNÇÃO CORRIGIDA: ENVIAR EMAIL PARA SECRETARIA
+const enviarEmailParaSecretaria = async () => {
   if (!emailPara.value || !emailAssunto.value || !emailCorpo.value) {
     alert('Preencha todos os campos do e-mail.')
     return
@@ -986,40 +999,90 @@ async function enviarEmailParaSecretaria() {
 
   if (!denuncia.value) return
 
-  const denunciaAtual = denuncia.value
-  let corpoCompleto = emailCorpo.value
+  enviandoEmail.value = true;
 
-  if (midias.value.length > 0) {
-    corpoCompleto += '\n\n📸 Fotos e Vídeos:\n'
-    midias.value.forEach(m => {
-      const url = supabase.storage.from('fotos_videos').getPublicUrl(m.caminho).data.publicUrl
-      if (url) corpoCompleto += `- ${url}\n`
-    })
+  try {
+    // Construir corpo do email de forma mais segura
+    let corpoCompleto = emailCorpo.value;
+
+    // Adicionar mídias apenas se existirem
+    if (midias.value.length > 0) {
+      corpoCompleto += '\n\n📸 Fotos e Vídeos:\n';
+      midias.value.forEach(m => {
+        try {
+          const { data } = supabase.storage.from('fotos_videos').getPublicUrl(m.caminho);
+          if (data?.publicUrl) {
+            corpoCompleto += `- ${data.publicUrl}\n`;
+          }
+        } catch (urlError) {
+          console.warn('Erro ao gerar URL para mídia:', m.caminho);
+        }
+      });
+    }
+
+    // Adicionar anexos apenas se existirem
+    if (anexos.value.length > 0) {
+      corpoCompleto += '\n📎 Anexos (PDFs):\n';
+      anexos.value.forEach(a => {
+        if (a.url) {
+          corpoCompleto += `- ${a.url}\n`;
+        }
+      });
+    }
+
+    // 🔍 DEBUG: Log dos dados
+    console.log('📤 Enviando email da denúncia:', {
+      denunciaId: denuncia.value.id,
+      secretariaEmail: emailPara.value,
+      assunto: emailAssunto.value,
+      tamanhoCorpo: corpoCompleto.length,
+      numeroMidias: midias.value.length,
+      numeroAnexos: anexos.value.length,
+      origem: 'DenunciaDetalhe.vue'
+    });
+
+    // ✅✅✅ CORREÇÃO: Enviar parâmetros CORRETOS para a função Edge
+    const { data, error } = await supabase.functions.invoke('enviar-email', {
+      body: {
+        denunciaId: denuncia.value.id, // ✅ CORRETO - a função espera este nome
+        secretariaEmail: emailPara.value.trim(), // ✅ CORRETO - a função espera este nome
+        assunto: emailAssunto.value.trim(),
+        corpo: corpoCompleto.trim()
+      }
+    });
+
+    if (error) {
+      console.error('❌ Erro da função Edge:', error);
+      throw error;
+    }
+
+    console.log('✅ Email enviado com sucesso:', data);
+    successMessage.value = '✅ E-mail enviado com sucesso!';
+    
+    fecharModalEmail();
+    await new Promise(r => setTimeout(r, 1500));
+    router.push({ name: 'TodasDenuncias' });
+    
+  } catch (err: any) {
+    console.error('❌ Erro ao enviar e-mail:', err);
+    
+    let mensagemErro = 'Falha ao enviar e-mail. ';
+    if (err.status === 400) {
+      mensagemErro += 'Verifique os dados do e-mail.';
+    } else if (err.status === 401) {
+      mensagemErro += 'Não autorizado. Faça login novamente.';
+    } else if (err.status === 403) {
+      mensagemErro += 'Apenas administradores podem enviar e-mails.';
+    } else {
+      mensagemErro += err.message || 'Tente novamente.';
+    }
+    
+    alert('❌ ' + mensagemErro);
+  } finally {
+    enviandoEmail.value = false;
   }
-
-  if (anexos.value.length > 0) {
-    corpoCompleto += '\n📎 Anexos (PDFs):\n'
-    anexos.value.forEach(a => {
-      corpoCompleto += `- ${a.url}\n`
-    })
-  }
-
-  const subject = encodeURIComponent(emailAssunto.value)
-  const body = encodeURIComponent(corpoCompleto)
-  window.location.href = `mailto:${emailPara.value}?subject=${subject}&body=${body}`
-
-  successMessage.value = '✅ E-mail aberto no seu app de mensagens!'
-  fecharModalEmail()
-  await new Promise(r => setTimeout(r, 1500))
-  router.push({ name: 'TodasDenuncias' })
 }
 
-function fecharModalEmail() {
-  showModalEmail.value = false
-  emailPara.value = ''
-  emailAssunto.value = ''
-  emailCorpo.value = ''
-}
-
+// ✅ INICIALIZAÇÃO
 onMounted(loadDenuncia)
 </script>
